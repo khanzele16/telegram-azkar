@@ -1,31 +1,12 @@
-import { model, Schema } from "mongoose";
+import { model, Schema, Types } from "mongoose";
 import { IAzkar } from "../../types/models";
 
-const Azkar = new Schema<IAzkar>(
-  {
-    text: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    audio: {
-      type: String,
-    },
-    category: {
-      type: String,
-      required: true,
-    },
-    translation: {
-      type: String,
-      required: true,
-    },
-    transcription: {
-      type: String,
-    },
-  },
-  {
-    timestamps: true,
-  }
-);
+const Azkar = new Schema<IAzkar>({
+  text: { type: String, required: true },
+  category: { type: String, required: true, index: true },
+  translation: String,
+  transcription: String,
+  audio: String,
+}, { timestamps: true, collection: "azkar" });
 
 export default model<IAzkar>("Azkar", Azkar);

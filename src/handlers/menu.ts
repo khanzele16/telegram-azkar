@@ -1,7 +1,6 @@
 import { Menu } from "@grammyjs/menu";
 import { MyContext } from "../types";
-import { profileHandler } from ".";
-import { help } from "./commands";
+import { profileHandler } from "./profileHandler";
 
 export const menuButtons = new Menu<MyContext>("menu")
   .text("👤 Мой профиль", async (ctx) => {
@@ -24,5 +23,8 @@ export const menuButtons = new Menu<MyContext>("menu")
   .text("❓ Помощь", async (ctx) => {
     await ctx.answerCallbackQuery("❓ Помощь");
     ctx.menu.close();
-    await help(ctx, true);
+    await ctx.reply(
+      "<b>Помощь</b>\n\nЕсли возникли какие-то трудности, то пишите @khanzele",
+      { parse_mode: "HTML" }
+    );
   });

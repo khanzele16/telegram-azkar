@@ -85,5 +85,6 @@ export const locationConversation = async (
     );
   } catch (err) {
     console.error(err);
+    throw err;
   }
 };

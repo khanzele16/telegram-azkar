@@ -17,7 +17,7 @@ export const menuButtons = new Menu<MyContext>("menu")
   .text("🗓 Статистика", async (ctx) => {
     await ctx.answerCallbackQuery("🗓 Статистика");
     ctx.menu.close();
-    await ctx.reply("Статистика пока в разработке");
+    
   })
   .row()
   .text("❓ Помощь", async (ctx) => {

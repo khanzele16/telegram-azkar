@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+import * as net from "node:net";
 import { conversations, createConversation } from "@grammyjs/conversations";
 import { Bot, GrammyError, HttpError, NextFunction } from "grammy";
 import { type MyConversationContext, type MyContext } from "./types";
@@ -15,6 +16,12 @@ import { menuButtons } from "./handlers/menu";
 import { startPrayerTimesCron } from "./cron/prayerTimesCron";
 
 dotenv.config({ path: "src/.env", override: true });
+
+if (
+  "getDefaultAutoSelectFamilyAttemptTimeout" in net &&
+  net.getDefaultAutoSelectFamilyAttemptTimeout() < 2500
+)
+  net.setDefaultAutoSelectFamilyAttemptTimeout(2500);
 
 const bot = new Bot<MyContext>(process.env.BOT_TOKEN as string);
 

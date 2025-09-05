@@ -9,10 +9,12 @@ import {
 } from "../queue/azkarQueue";
 import { Types } from "mongoose";
 import { MyContext } from "../types";
+import dotenv from "dotenv";
+
+dotenv.config({ path: "src/.env" });
 
 const bot = new Bot(process.env.BOT_TOKEN as string);
 
-// ---- Отправка нотификации из очереди/cron ----
 export async function sendAzkarNotification(
   telegramId: number,
   prayer: "Fajr" | "Maghrib",
@@ -43,13 +45,11 @@ export async function sendAzkarNotification(
   }
 }
 
-// ---- Хранилище состояния слайдера (in-memory) ----
 const sliderStates = new Map<
   string,
   { azkarIds: Types.ObjectId[]; index: number; date: string; userId: Types.ObjectId; chatId: number }
 >();
 
-// ---- Запуск слайдера (после "Прочитать") ----
 async function startAzkarSlider(
   ctx: MyContext,
   userId: Types.ObjectId,
@@ -59,7 +59,7 @@ async function startAzkarSlider(
 ) {
   const azkar = await Azkar.aggregate([
     { $match: { category: prayer.toLowerCase() } },
-    { $sample: { size: 10 } }, // можно отрегулировать
+    { $sample: { size: 10 } },
   ]);
 
   if (azkar.length === 0) {
@@ -84,7 +84,6 @@ async function startAzkarSlider(
   );
 }
 
-// ---- Клавиатура слайдера ----
 function buildSliderKeyboard(sliderId: string, index: number, total: number): InlineKeyboard {
   return new InlineKeyboard()
     .text("⏪", `slider:${sliderId}:prev`)
@@ -104,7 +103,6 @@ function formatAzkarMessage(azkar: any, i: number, total: number): string {
   return msg;
 }
 
-// ---- Обработчик callbackов для карточки-уведомления ----
 export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
   const data = ctx.callbackQuery?.data;
   if (!data) {
@@ -141,7 +139,6 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
   await ctx.answerCallbackQuery("❌ Неизвестное действие");
 }
 
-// ---- Обработчик callbackов слайдера ----
 export async function handleSliderCallback(ctx: MyContext): Promise<void> {
   const data = ctx.callbackQuery?.data;
   if (!data) {
@@ -173,7 +170,6 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
     return;
   }
 
-  // Перерисовываем текущий азкар
   const azkar = await Azkar.findById(state.azkarIds[state.index]);
   if (!azkar) {
     await ctx.answerCallbackQuery("❌ Ошибка загрузки");

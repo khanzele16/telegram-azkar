@@ -1,8 +1,9 @@
-import { register } from "../database/controllers/auth";
 import User from "../database/models/User";
+import { register } from "../database/controllers/auth";
 import { type MyContext } from "../types";
 import { menuButtons } from "./menu";
-import { profileHandler } from "./profileHandler";
+import { profileHandler } from "./index";
+import { statsHandler } from "./statsHandler";
 
 export const start = async (ctx: MyContext) => {
   try {
@@ -52,6 +53,15 @@ export const menu = async (ctx: MyContext) => {
     await ctx.reply("Произошла ошибка при открытии меню. Попробуйте позже.");
   }
 };
+
+export const stats = async (ctx: MyContext) => {
+  try {
+    await statsHandler(ctx);
+  } catch (error) {
+    console.error("Error in stats command:", error);
+    await ctx.reply("Произошла ошибка при загрузке статистики. Попробуйте позже.");
+  }
+}
 
 export const location = async (ctx: MyContext) => {
   try {

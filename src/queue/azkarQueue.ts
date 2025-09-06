@@ -5,17 +5,7 @@ import { sendAzkarNotification } from "../handlers/azkarNotification";
 
 dotenv.config({ path: "src/.env" });
 
-<<<<<<< HEAD
-const redisUrl = process.env.REDIS_URL;
-if (!redisUrl) {
-  throw new Error(
-    "REDIS_URL is not set. Provide Upstash rediss:// URL in env."
-  );
-}
-
-=======
->>>>>>> 54da901 (From server)
-const connection = new Redis(redisUrl, {
+const connection = new Redis(process.env.REDIS_URL as string, {
   tls: {},
   maxRetriesPerRequest: null,
 });

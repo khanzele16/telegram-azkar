@@ -7,7 +7,9 @@ dotenv.config({ path: "src/.env" });
 
 const redisUrl = process.env.REDIS_URL;
 if (!redisUrl) {
-  throw new Error("REDIS_URL is not set. Provide Upstash rediss:// URL in env.");
+  throw new Error(
+    "REDIS_URL is not set. Provide Upstash rediss:// URL in env."
+  );
 }
 
 const connection = new Redis(redisUrl, {
@@ -58,10 +60,12 @@ export async function postponeAzkarNotification(
   chatId?: number
 ): Promise<void> {
   const jobId = jobKey(userId, prayer, date);
-
   try {
     await azkarQueue.remove(jobId);
-  } catch {}
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
 
   const delay = 60 * 60 * 1000;
   await azkarQueue.add(
@@ -85,7 +89,10 @@ export async function cancelAzkarNotification(
   const jobId = jobKey(userId, prayer, date);
   try {
     await azkarQueue.remove(jobId);
-  } catch {}
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
 }
 
 export const azkarWorker = new Worker(
@@ -99,5 +106,5 @@ export const azkarWorker = new Worker(
     };
     await sendAzkarNotification(telegramId, prayer, date, chatId);
   },
-  { connection }
+  { connection, concurrency: 5 }
 );

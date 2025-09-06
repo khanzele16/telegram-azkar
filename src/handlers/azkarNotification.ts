@@ -15,6 +15,10 @@ dotenv.config({ path: "src/.env" });
 
 const bot = new Bot(process.env.BOT_TOKEN as string);
 
+function prayerToType(prayer: "Fajr" | "Maghrib"): "morning" | "evening" {
+  return prayer === "Fajr" ? "morning" : "evening";
+}
+
 export async function sendAzkarNotification(
   telegramId: number,
   prayer: "Fajr" | "Maghrib",
@@ -47,7 +51,14 @@ export async function sendAzkarNotification(
 
 const sliderStates = new Map<
   string,
-  { azkarIds: Types.ObjectId[]; index: number; date: string; userId: Types.ObjectId; chatId: number }
+  {
+    azkarIds: Types.ObjectId[];
+    index: number;
+    date: string;
+    userId: Types.ObjectId;
+    chatId: number;
+    type: "morning" | "evening";
+  }
 >();
 
 async function startAzkarSlider(
@@ -74,6 +85,7 @@ async function startAzkarSlider(
     date,
     userId,
     chatId,
+    type: prayerToType(prayer),
   });
 
   const keyboard = buildSliderKeyboard(sliderId, 0, azkar.length);
@@ -84,7 +96,11 @@ async function startAzkarSlider(
   );
 }
 
-function buildSliderKeyboard(sliderId: string, index: number, total: number): InlineKeyboard {
+function buildSliderKeyboard(
+  sliderId: string,
+  index: number,
+  total: number
+): InlineKeyboard {
   return new InlineKeyboard()
     .text("⏪", `slider:${sliderId}:prev`)
     .text(`${index + 1}/${total}`, `slider:${sliderId}:info`)
@@ -98,7 +114,8 @@ function formatAzkarMessage(azkar: any, i: number, total: number): string {
   let msg = `<b>📖 Азкар ${i}/${total}</b>\n\n`;
   msg += `<b>Текст:</b>\n${azkar.text}\n\n`;
   if (azkar.translation) msg += `<b>Перевод:</b>\n${azkar.translation}\n\n`;
-  if (azkar.transcription) msg += `<b>Транскрипция:</b>\n${azkar.transcription}\n\n`;
+  if (azkar.transcription)
+    msg += `<b>Транскрипция:</b>\n${azkar.transcription}\n\n`;
   if (azkar.audio) msg += `🔊 <i>Доступно аудио</i>`;
   return msg;
 }
@@ -118,14 +135,24 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
   }
 
   if (action === "postpone") {
-    await postponeAzkarNotification(user._id.toString(), ctx.from!.id, prayer as any, date, ctx.chat!.id);
+    await postponeAzkarNotification(
+      user._id.toString(),
+      ctx.from!.id,
+      prayer as any,
+      date,
+      ctx.chat!.id
+    );
     await ctx.answerCallbackQuery("⏰ Отложено на 1 час");
     return;
   }
 
   if (action === "skip") {
     await cancelAzkarNotification(user._id.toString(), prayer as any, date);
-    await StreakService.markSkipped(user._id, date);
+    await StreakService.markSkipped(
+      user._id,
+      date,
+      prayerToType(prayer as "Fajr" | "Maghrib")
+    );
     await ctx.answerCallbackQuery("День отмечен как пропущенный");
     return;
   }
@@ -162,7 +189,12 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
     state.index = Math.min(total - 1, state.index + 1);
   } else if (action === "plus") {
     const azkarId = state.azkarIds[state.index];
-    await StreakService.markRead(state.userId, state.date, azkarId as any);
+    await StreakService.markRead(
+      state.userId,
+      state.date,
+      state.type,
+      azkarId as any
+    );
     await ctx.answerCallbackQuery("+1 записан");
   } else if (action === "finish") {
     sliderStates.delete(sliderId);
@@ -177,8 +209,8 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
   }
 
   const kb = buildSliderKeyboard(sliderId, state.index, total);
-  await ctx.editMessageText(
-    formatAzkarMessage(azkar, state.index + 1, total),
-    { reply_markup: kb, parse_mode: "HTML" }
-  );
+  await ctx.editMessageText(formatAzkarMessage(azkar, state.index + 1, total), {
+    reply_markup: kb,
+    parse_mode: "HTML",
+  });
 }

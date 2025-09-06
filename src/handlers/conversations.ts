@@ -10,6 +10,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 dayjs.extend(utc);
+dayjs.locale("ru");
 
 export const startConversation = async (
   conversation: MyConversation,
@@ -80,7 +81,13 @@ export const locationConversation = async (
       { upsert: true }
     );
     await ctx.reply(
-      `<b>🌞 Ваше местное время намаза на ${prayTime.date.readable}</b>\n🌅 Фаджр — ${prayTime.timings.Fajr}\n🌃 Магриб — ${prayTime.timings.Maghrib}\n\n✅ Ваш аккаунт настроен, уведомления будут приходить автоматически.`,
+      `<b>🌞 Ваше местное время намаза на ${dayjs(
+        prayTime.date.timestamp * 1000
+      ).format("D MMMM YYYY")}</b>\n🌅 Фаджр — ${
+        prayTime.timings.Fajr
+      }\n🌃 Магриб — ${
+        prayTime.timings.Maghrib
+      }\n\n✅ Ваш аккаунт настроен, уведомления будут приходить автоматически.`,
       { parse_mode: "HTML", reply_markup: toMenuKeyboard }
     );
   } catch (err) {

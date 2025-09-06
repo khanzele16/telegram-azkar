@@ -7,7 +7,20 @@ import "dayjs/locale/ru";
 
 dayjs.extend(weekday);
 dayjs.extend(isoWeek);
-dayjs.locale('ru')
+dayjs.locale("ru");
+
+function statusToEmoji(status: ICalendarDay["morningStatus"]): string {
+  switch (status) {
+    case "read":
+      return "✅";
+    case "skipped":
+      return "❌";
+    case "postponed":
+      return "⏸";
+    default:
+      return " ";
+  }
+}
 
 export const generateCalendarMarkup = (
   calendar: ICalendarDay[],
@@ -45,14 +58,15 @@ export const generateCalendarMarkup = (
 
   for (let day = 1; day <= daysInMonth; day++) {
     const date = currentMonth.date(day).format("YYYY-MM-DD");
-    const reading = calendar.find((r) => r.date === date);
+    const item = calendar.find((r) => r.date === date);
 
-    let emoji = "";
-    if (reading?.status === "read") emoji = "✅";
-    if (reading?.status === "skipped") emoji = "❌";
-    if (reading?.status === "postponed") emoji = "⏸";
+    const morning = item ? statusToEmoji(item.morningStatus) : " ";
+    const evening = item ? statusToEmoji(item.eveningStatus) : " ";
 
-    kb.text(`${day} ${emoji}`, `day:${year}:${month}:${day}`);
+    kb.text(
+      `${day.toString().padStart(2, "0")} ${morning}${evening}`,
+      "empty"
+    );
     col++;
 
     if (col === 7) {

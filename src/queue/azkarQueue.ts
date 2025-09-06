@@ -5,6 +5,7 @@ import { sendAzkarNotification } from "../handlers/azkarNotification";
 
 dotenv.config({ path: "src/.env" });
 
+<<<<<<< HEAD
 const redisUrl = process.env.REDIS_URL;
 if (!redisUrl) {
   throw new Error(
@@ -12,6 +13,8 @@ if (!redisUrl) {
   );
 }
 
+=======
+>>>>>>> 54da901 (From server)
 const connection = new Redis(redisUrl, {
   tls: {},
   maxRetriesPerRequest: null,

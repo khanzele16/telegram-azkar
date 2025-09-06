@@ -17,12 +17,6 @@ import { startPrayerTimesCron } from "./cron/prayerTimesCron";
 
 dotenv.config({ path: "src/.env", override: true });
 
-if (
-  "getDefaultAutoSelectFamilyAttemptTimeout" in net &&
-  net.getDefaultAutoSelectFamilyAttemptTimeout() < 2500
-)
-  net.setDefaultAutoSelectFamilyAttemptTimeout(2500);
-
 const bot = new Bot<MyContext>(process.env.BOT_TOKEN as string);
 
 mongoose

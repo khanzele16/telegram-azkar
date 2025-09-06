@@ -20,34 +20,31 @@ export async function statsHandler(ctx: MyContext): Promise<void> {
       await ctx.reply("❌ Пользователь не найден. Используйте /start для регистрации.");
       return;
     }
+
     const stats = await StreakService.getProfileStats(user._id);
-    
+    const statsMessage = formatProfileStats(stats);
+
     const now = dayjs.utc();
     const currentYear = now.year();
     const currentMonth = now.month() + 1;
-    const calendar = await CalendarService.getMonthCalendar(user._id, currentYear, currentMonth);
-    
-    const statsMessage = formatProfileStats(stats);
-    
-    const calendarMessage = formatCalendar(calendar, currentYear, currentMonth);
-    
+    await CalendarService.getMonthCalendar(user._id, currentYear, currentMonth); // только чтобы не было пусто
     const keyboard = createCalendarKeyboard(currentYear, currentMonth);
-    
-    await ctx.reply(
-      `${statsMessage}\n\n${calendarMessage}`,
-      { 
-        reply_markup: keyboard,
-        parse_mode: "HTML" 
-      }
-    );
-    
+
+    await ctx.reply(statsMessage, {
+      reply_markup: keyboard,
+      parse_mode: "HTML",
+    });
   } catch (error) {
     console.error("❌ Ошибка в statsHandler:", error);
     await ctx.reply("❌ Произошла ошибка при загрузке статистики");
   }
 }
 
-export async function handleCalendarNavigation(ctx: MyContext, year: number, month: number): Promise<void> {
+export async function handleCalendarNavigation(
+  ctx: MyContext,
+  year: number,
+  month: number
+): Promise<void> {
   try {
     if (!ctx.from?.id) {
       await ctx.answerCallbackQuery("❌ Ошибка: не удалось определить пользователя");
@@ -60,22 +57,16 @@ export async function handleCalendarNavigation(ctx: MyContext, year: number, mon
       return;
     }
 
-    const calendar = await CalendarService.getMonthCalendar(user._id, year, month);
-    
-    const calendarMessage = formatCalendar(calendar, year, month);
-    
+    // прогрузим календарь (если нужно — для будущего расширения)
+    await CalendarService.getMonthCalendar(user._id, year, month);
     const keyboard = createCalendarKeyboard(year, month);
-    
-    await ctx.editMessageText(
-      `📊 <b>Статистика</b>\n\n${calendarMessage}`,
-      { 
-        reply_markup: keyboard,
-        parse_mode: "HTML" 
-      }
-    );
-    
+
+    await ctx.editMessageText("📊 <b>Статистика</b>", {
+      reply_markup: keyboard,
+      parse_mode: "HTML",
+    });
+
     await ctx.answerCallbackQuery(`📅 ${getMonthName(month)} ${year}`);
-    
   } catch (error) {
     console.error("❌ Ошибка в handleCalendarNavigation:", error);
     await ctx.answerCallbackQuery("❌ Ошибка при загрузке календаря");
@@ -89,91 +80,45 @@ function formatProfileStats(stats: {
   totalSkippedDays: number;
 }): string {
   let message = "<b>📊 Статистика</b>\n\n";
-  
+
   message += `🔥 <b>Текущий стрик:</b> ${stats.currentStreak} дней\n\n`;
-  
+
   if (stats.lastReadAt) {
     const lastRead = dayjs.utc(stats.lastReadAt).format("DD.MM.YYYY HH:mm");
     message += `📅 <b>Последнее чтение:</b> ${lastRead}\n\n`;
   } else {
     message += `📅 <b>Последнее чтение:</b> Никогда\n\n`;
   }
-  
+
   message += `📈 <b>Общая статистика:</b>\n`;
   message += `   ✅ Прочитано дней: ${stats.totalReadDays}\n`;
-  message += `   ❌ Пропущено дней: ${stats.totalSkippedDays}\n\n`;
-  
-  return message;
-}
+  message += `   ❌ Пропущено дней: ${stats.totalSkippedDays}\n`;
 
-function formatCalendar(calendar: Array<{ date: string; status: string }>, year: number, month: number): string {
-  let message = `<b>🗓 Календарь ${getMonthName(month)} ${year}</b>\n\n`;
-  
-  const weeks: Array<Array<{ date: string; status: string }>> = [];
-  let currentWeek: Array<{ date: string; status: string }> = [];
-  
-  calendar.forEach((day, index) => {
-    currentWeek.push(day);
-    
-    const dayOfWeek = dayjs.utc(day.date).day();
-    if (dayOfWeek === 0 || index === calendar.length - 1) {
-      weeks.push([...currentWeek]);
-      currentWeek = [];
-    }
-  });
-  
-  weeks.forEach((week, weekIndex) => {
-    message += `Неделя ${weekIndex + 1}:\n`;
-    
-    week.forEach(day => {
-      const dayNumber = dayjs.utc(day.date).date();
-      const statusEmoji = getStatusEmoji(day.status);
-      message += `${statusEmoji} ${dayNumber.toString().padStart(2, '0')} `;
-    });
-    
-    message += "\n\n";
-  });
-  
   return message;
 }
 
 function createCalendarKeyboard(year: number, month: number): InlineKeyboard {
   const keyboard = new InlineKeyboard();
-  
+
   const prevMonth = month === 1 ? 12 : month - 1;
   const prevYear = month === 1 ? year - 1 : year;
   const nextMonth = month === 12 ? 1 : month + 1;
   const nextYear = month === 12 ? year + 1 : year;
-  
+
   keyboard
     .text("⏪", `calendar:${prevYear}:${prevMonth}`)
     .text(`${getMonthName(month)} ${year}`, `calendar:info`)
     .text("⏩", `calendar:${nextYear}:${nextMonth}`)
     .row()
     .text("📊 Обновить", `calendar:${year}:${month}`);
-  
+
   return keyboard;
 }
 
 function getMonthName(month: number): string {
   const months = [
-    "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+    "Январь","Февраль","Март","Апрель","Май","Июнь",
+    "Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"
   ];
   return months[month - 1];
 }
-
-function getStatusEmoji(status: string): string {
-  switch (status) {
-    case "read":
-      return "✅";
-    case "skipped":
-      return "❌";
-    case "postponed":
-      return "⏰";
-    case "pending":
-      return "⏳";
-    default:
-      return "⚪";
-  }
-} 

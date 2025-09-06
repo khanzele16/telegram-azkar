@@ -1,30 +1,23 @@
 import { Menu } from "@grammyjs/menu";
 import { MyContext } from "../types";
-import { location, profile, stats } from "./commands";
+import { profileHandler } from "./index";
+import { statsHandler } from "./statsHandler";
 
 export const menuButtons = new Menu<MyContext>("menu")
   .text("👤 Мой профиль", async (ctx) => {
-    await ctx.answerCallbackQuery("👤 Мой профиль");
+    await ctx.answerCallbackQuery();
     ctx.menu.close();
-    await profile(ctx);
+    await profileHandler(ctx);
   })
   .row()
-  .text("📍 Геолокация", async (ctx) => {
-    await ctx.answerCallbackQuery("📍 Геолокация");
-    ctx.menu.close();
-    await location(ctx);
-  })
   .text("🗓 Статистика", async (ctx) => {
-    await ctx.answerCallbackQuery("🗓 Статистика");
+    await ctx.answerCallbackQuery();
     ctx.menu.close();
-    await stats(ctx)
+    await statsHandler(ctx);
   })
   .row()
   .text("❓ Помощь", async (ctx) => {
-    await ctx.answerCallbackQuery("❓ Помощь");
+    await ctx.answerCallbackQuery();
     ctx.menu.close();
-    await ctx.reply(
-      "<b>❓ Помощь</b>\n\nЕсли возникли какие-то трудности, то пишите @khanzele",
-      { parse_mode: "HTML" }
-    );
+    await ctx.reply("<b>Помощь</b>\n\nМы отправляем азкары для чтения и запоминания.", { parse_mode: "HTML" });
   });

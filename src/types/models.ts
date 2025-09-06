@@ -8,25 +8,19 @@ export interface IUser {
     latitude: string;
     longitude: string;
   };
-  date?: {
-    readable: string;
-    timestamp: number;
-  };
   timings?: {
-    Fajr: string;
-    Maghrib: string;
-    fajrUTC: { type: String };
-    maghribUTC: { type: String };
+    FajrUTC: string;
+    MaghribUTC: string;
   };
   currentStreak: {
     value: number;
     lastUpdated: Date;
   };
-  preferences: {
-    notifyMorning: Boolean;
-    notifyEvening: Boolean;
-  };
   lastReadAt?: Date;
+  preferences: {
+    notifyMorning: boolean;
+    notifyEvening: boolean;
+  };
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -60,10 +54,13 @@ export interface IAzkar {
 export interface IDay {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
-  azkarsId: Types.ObjectId[];
   date: string;
-  status: "read" | "skipped" | "postponed" | "pending";
   type: "morning" | "evening";
+  status: "pending" | "read" | "skipped" | "postponed";
+  azkarIds: Types.ObjectId[];
+  startedAt?: Date;
+  finishedAt?: Date;
+  postponedUntil?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }

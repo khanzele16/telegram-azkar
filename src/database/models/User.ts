@@ -6,24 +6,18 @@ const User = new Schema<IUser>(
     telegramId: { type: Number, required: true, unique: true },
     username: { type: String, unique: true, sparse: true },
     location: {
-      latitude: { type: String },
-      longitude: { type: String },
-    },
-    date: {
-      readable: { type: String },
-      timestamp: { type: Number },
+      latitude: String,
+      longitude: String,
     },
     timings: {
-      Fajr: { type: String },
-      Maghrib: { type: String },
-      fajrUTC: { type: String },
-      maghribUTC: { type: String },
+      FajrUTC: String,
+      MaghribUTC: String,
     },
     currentStreak: {
       value: { type: Number, default: 0 },
-      lastUpdated: { type: Date },
+      lastUpdated: Date,
     },
-    lastReadAt: { type: Date },
+    lastReadAt: Date,
     preferences: {
       notifyMorning: { type: Boolean, default: true },
       notifyEvening: { type: Boolean, default: true },

@@ -1,37 +1,27 @@
 import dayjs from "dayjs";
+import { MyContext } from "../types";
+import { StreakService } from "../services/streakService";
 import User from "../database/models/User";
-import { type IUser } from "../types/models";
-import { IPrayTime, type MyContext } from "../types";
 import { CalendarService } from "../services/CalendarService";
 import { generateCalendarMarkup } from "../shared/calendarMarkup";
-import { getPrayTime } from "../shared/requests";
 
-export const profileHandler = async (ctx: MyContext) => {
-  try {
-    const user: IUser | null = await User.findOne({ telegramId: ctx.from?.id });
-    if (!user || !user.location) {
-      await ctx.reply(
-        "Вы не зарегистрированы. Используйте /start для регистрации."
-      );
-      return;
-    }
-    const pray: IPrayTime = await getPrayTime(
-      user.location.latitude,
-      user.location.longitude
-    );
-    console.log(pray)
-    await ctx.reply(
-      `${
-        user?.username
-          ? `<b>👤 Профиль — ${user.username}</b>\n\n🌅 Время утренних азкаров — ${user.timings?.Fajr}\n\n🌃 Время вечерних азкаров — ${user.timings?.Maghrib}`
-          : `<b>👤 Ваш Профиль</b>\n\n`
-      }`,
-      { parse_mode: "HTML" }
-    );
-  } catch (err) {
-    console.error("❌ Ошибка в обработчике профиля:", err);
-  }
-};
+export async function profileHandler(ctx: MyContext) {
+  const user = await User.findOne({ telegramId: ctx.from?.id });
+  if (!user) return ctx.reply("Вы не зарегистрированы");
+
+  const stats = await StreakService.getProfileStats(user._id);
+
+  await ctx.reply(
+    `<b>👤 Профиль — ${user.username || "Ваш"}</b>\n\n` +
+    `🌅 Утренний намаз (UTC): ${user.timings?.FajrUTC || "-"}\n` +
+    `🌃 Вечерний намаз (UTC): ${user.timings?.MaghribUTC || "-"}\n\n` +
+    `🔥 Текущий стрик: ${stats.currentStreak} дней\n` +
+    `📈 Прочитано дней: ${stats.totalReadDays}\n` +
+    `❌ Пропущено дней: ${stats.totalSkippedDays}`,
+    { parse_mode: "HTML" }
+  );
+}
+
 
 export const calendarHandler = async (ctx: MyContext) => {
   try {

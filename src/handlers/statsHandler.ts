@@ -30,8 +30,8 @@ export async function statsHandler(ctx: MyContext): Promise<void> {
     const now = dayjs.utc();
     const currentYear = now.year();
     const currentMonth = now.month() + 1;
-    await CalendarService.getMonthCalendar(user._id, currentYear, currentMonth); // только чтобы не было пусто
-    const keyboard = createCalendarKeyboard(currentYear, currentMonth);
+    const calendar = await CalendarService.getMonthCalendar(user._id, currentYear, currentMonth); // только чтобы не было пусто
+    const keyboard = generateCalendarMarkup(calendar, currentYear, currentMonth);
 
     await ctx.reply(statsMessage, {
       reply_markup: keyboard,

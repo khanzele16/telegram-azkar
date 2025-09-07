@@ -1,42 +1,32 @@
-import dayjs from "dayjs";
-import { Types } from "mongoose";
 import Day from "../database/models/Day";
 import User from "../database/models/User";
+import { Types } from "mongoose";
+import { getLocalDateFromUTC } from "../shared";
 
 export class StreakService {
   static async markRead(
     userId: Types.ObjectId,
-    date: string,
+    utcDateString: string,
     type: "morning" | "evening",
     azkarId: Types.ObjectId
   ) {
-    await Day.findOneAndUpdate(
-      { userId, date, type },
+    const localDate = getLocalDateFromUTC(utcDateString);
+
+    await Day.updateOne(
+      { userId, date: localDate, type },
       {
-        $set: { status: "read", finishedAt: new Date() },
-        $addToSet: { azkarIds: azkarId },
         $setOnInsert: { startedAt: new Date() },
+        $addToSet: { azkarIds: azkarId },
+        status: "read",
+        finishedAt: new Date(),
       },
-      { upsert: true, new: true }
+      { upsert: true }
     );
 
-    const yesterday = dayjs(date).subtract(1, "day").format("YYYY-MM-DD");
-    const yesterdayRead = await Day.findOne({
-      userId,
-      date: yesterday,
-      type,
-      status: "read",
-    });
-
-    const user = await User.findById(userId);
-    const prevStreak = user?.currentStreak.value || 0;
-    const newStreak = yesterdayRead ? prevStreak + 1 : 1;
-
-    await User.findByIdAndUpdate(userId, {
-      lastReadAt: new Date(),
-      "currentStreak.value": newStreak,
-      "currentStreak.lastUpdated": new Date(),
-    });
+    await User.updateOne(
+      { _id: userId },
+      { $set: { lastReadAt: new Date(), lastReadDate: localDate } }
+    );
   }
 
   static async markSkipped(

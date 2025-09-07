@@ -98,7 +98,6 @@ async function startAzkarSlider(
 
   const azkar = await Azkar.aggregate([
     { $match: { category: type, _id: { $nin: alreadyReadIds } } },
-    { $sample: { size: 10 } },
   ]);
 
   if (azkar.length === 0) {
@@ -117,11 +116,22 @@ async function startAzkarSlider(
   });
 
   const keyboard = buildSliderKeyboard(sliderId, 0, azkar.length);
-  await ctx.api.sendMessage(
-    chatId,
-    formatAzkarMessage(azkar[0], 1, azkar.length),
-    { reply_markup: keyboard, parse_mode: "HTML" }
-  );
+  if (azkar[0].audio) {
+    await ctx.api.sendAudio(chatId, azkar[0].audio, {
+      caption: formatAzkarMessage(azkar[0], 1, azkar.length),
+      reply_markup: keyboard,
+      parse_mode: "HTML",
+    });
+  } else {
+    await ctx.api.sendMessage(
+      chatId,
+      formatAzkarMessage(azkar[0], 1, azkar.length),
+      {
+        reply_markup: keyboard,
+        parse_mode: "HTML",
+      }
+    );
+  }
 }
 
 function buildSliderKeyboard(
@@ -144,7 +154,6 @@ function formatAzkarMessage(azkar: any, i: number, total: number): string {
   if (azkar.translation) msg += `<b>Перевод:</b>\n${azkar.translation}\n\n`;
   if (azkar.transcription)
     msg += `<b>Транскрипция:</b>\n${azkar.transcription}\n\n`;
-  if (azkar.audio) msg += `🔊 <i>Доступно аудио</i>`;
   return msg;
 }
 
@@ -162,6 +171,13 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
     return;
   }
 
+  const dayRecord = await Day.findOne({
+    userId: user._id,
+    date,
+    type: prayer === "Fajr" ? "morning" : "evening",
+  });
+
+  // Отложить
   if (action === "postpone") {
     await postponeAzkarNotification(
       user._id.toString(),
@@ -174,18 +190,46 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
     return;
   }
 
+  // Пропустить
   if (action === "skip") {
     await cancelAzkarNotification(user._id.toString(), prayer as any, date);
+
     await StreakService.markSkipped(
       user._id,
       date,
-      prayerToType(prayer as "Fajr" | "Maghrib")
+      prayer === "Fajr" ? "morning" : "evening"
     );
+
+    // Обновляем уведомление
+    if (dayRecord?.messageId) {
+      try {
+        await ctx.api.editMessageText(
+          ctx.chat!.id,
+          dayRecord.messageId,
+          `❌ Вы сегодня пропустили чтение ${
+            prayer === "Fajr" ? "утренних" : "вечерних"
+          } азкаров`
+        );
+      } catch (err) {
+        console.log("Не удалось обновить сообщение уведомления:", err);
+      }
+    }
+
     await ctx.answerCallbackQuery("День отмечен как пропущенный");
     return;
   }
 
+  // Прочитать
   if (action === "read") {
+    // Удаляем уведомление
+    if (dayRecord?.messageId) {
+      try {
+        await ctx.api.deleteMessage(ctx.chat!.id, dayRecord.messageId);
+      } catch (err) {
+        console.log("Не удалось удалить сообщение уведомления:", err);
+      }
+    }
+
     await startAzkarSlider(ctx, user._id, ctx.chat!.id, prayer as any, date);
     await ctx.answerCallbackQuery();
     return;
@@ -203,7 +247,7 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
 
   const parts = data.split(":");
 
-  const action = parts.pop(); 
+  const action = parts.pop();
   const sliderId = parts.slice(1).join(":");
 
   const state = sliderStates.get(sliderId);

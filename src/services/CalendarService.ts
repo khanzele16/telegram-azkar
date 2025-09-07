@@ -5,10 +5,12 @@ import Day from "../database/models/Day";
 
 dayjs.extend(isoWeek);
 
+export type Status = "read" | "skipped" | "postponed" | "pending";
+
 export interface ICalendarDay {
   date: string;
-  morningStatus: string;
-  eveningStatus: string;
+  morningStatus?: Status;
+  eveningStatus?: Status;
 }
 
 export class CalendarService {

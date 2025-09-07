@@ -56,6 +56,8 @@ export const locationConversation = async (
       longitude.toString()
     );
 
+    console.log(prayTime)
+
     const fajrLocal = dayjs
       .unix(prayTime.date.timestamp)
       .tz(prayTime.meta.timezone)

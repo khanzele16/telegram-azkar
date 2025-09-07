@@ -55,21 +55,26 @@ export const locationConversation = async (
       latitude.toString(),
       longitude.toString()
     );
+
     const fajrLocal = dayjs
       .unix(prayTime.date.timestamp)
       .tz(prayTime.meta.timezone)
       .hour(Number(prayTime.timings.Fajr.split(":")[0]))
       .minute(Number(prayTime.timings.Fajr.split(":")[1]));
+
     const maghribLocal = dayjs
       .unix(prayTime.date.timestamp)
       .tz(prayTime.meta.timezone)
       .hour(Number(prayTime.timings.Maghrib.split(":")[0]))
       .minute(Number(prayTime.timings.Maghrib.split(":")[1]));
+
     const timingsUTC = {
-      FajrUTC: fajrLocal.utc().format("HH:mm"),
-      MaghribUTC: maghribLocal.utc().format("HH:mm"),
+      FajrUTC: fajrLocal.utc().toISOString(),
+      MaghribUTC: maghribLocal.utc().toISOString(),
     };
-    console.log(timingsUTC);
+
+    console.log("timingsUTC", timingsUTC);
+
     await User.updateOne(
       { telegramId: ctx.from?.id },
       {
@@ -84,6 +89,7 @@ export const locationConversation = async (
       },
       { upsert: true }
     );
+
     await ctx.reply(
       `<b>🌞 Ваше местное время намаза на ${dayjs(
         prayTime.date.timestamp * 1000

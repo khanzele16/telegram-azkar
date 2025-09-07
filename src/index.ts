@@ -98,6 +98,11 @@ export async function scheduleAzkarNotification(
   const delay = Math.max(0, new Date(runAtISO).getTime() - Date.now());
   const jobId = `${userId}:${prayer}:${date}`;
 
+  const existingJob = await azkarQueue.getJob(jobId);
+  if (existingJob) {
+    return;
+  }
+
   await azkarQueue.add(
     "send",
     { userId, telegramId, prayer, date, chatId },

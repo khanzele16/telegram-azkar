@@ -1,4 +1,4 @@
-import { Bot, InlineKeyboard } from "grammy";
+import { Api, InlineKeyboard } from "grammy";
 import User from "../database/models/User";
 import Azkar from "../database/models/Azkar";
 import Reading from "../database/models/Reading";
@@ -13,7 +13,7 @@ import dotenv from "dotenv";
 
 dotenv.config({ path: "src/.env" });
 
-const bot = new Bot(process.env.BOT_TOKEN as string);
+const api = new Api(process.env.BOT_TOKEN as string);
 
 function prayerToType(prayer: "Fajr" | "Maghrib"): "morning" | "evening" {
   return prayer === "Fajr" ? "morning" : "evening";
@@ -33,7 +33,7 @@ export async function sendAzkarNotification(
     .row()
     .text("❌ Сегодня не буду", `azkarnotify:skip:${prayer}:${date}`);
 
-  await bot.api.sendMessage(
+  await api.sendMessage(
     targetChatId,
     `🕌 Время ${prayer === "Fajr" ? "утренних" : "вечерних"} азкаров.`,
     { reply_markup: keyboard }

@@ -11,6 +11,7 @@ export interface ICommand extends BotCommand {
 }
 
 export interface IPrayTime {
+  meta: { timezone: string };
   date: {
     readable: string;
     timestamp: number;

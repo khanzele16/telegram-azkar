@@ -1,4 +1,5 @@
 import User from "../database/models/User";
+import timezone from "dayjs/plugin/timezone";
 import {
   locationKeyboard,
   startKeyboard,
@@ -10,6 +11,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 dayjs.extend(utc);
+dayjs.extend(timezone);
 dayjs.locale("ru");
 
 export const startConversation = async (
@@ -53,21 +55,21 @@ export const locationConversation = async (
       latitude.toString(),
       longitude.toString()
     );
+    const fajrLocal = dayjs
+      .unix(prayTime.date.timestamp)
+      .tz(prayTime.meta.timezone)
+      .hour(Number(prayTime.timings.Fajr.split(":")[0]))
+      .minute(Number(prayTime.timings.Fajr.split(":")[1]));
+    const maghribLocal = dayjs
+      .unix(prayTime.date.timestamp)
+      .tz(prayTime.meta.timezone)
+      .hour(Number(prayTime.timings.Maghrib.split(":")[0]))
+      .minute(Number(prayTime.timings.Maghrib.split(":")[1]));
     const timingsUTC = {
-      FajrUTC: dayjs
-        .unix(prayTime.date.timestamp)
-        .hour(Number(prayTime.timings.Fajr.split(":")[0]))
-        .minute(Number(prayTime.timings.Fajr.split(":")[1]))
-        .utc()
-        .format("HH:mm"),
-      MaghribUTC: dayjs
-        .unix(prayTime.date.timestamp)
-        .hour(Number(prayTime.timings.Maghrib.split(":")[0]))
-        .minute(Number(prayTime.timings.Maghrib.split(":")[1]))
-        .utc()
-        .format("HH:mm"),
+      FajrUTC: fajrLocal.utc().format("HH:mm"),
+      MaghribUTC: maghribLocal.utc().format("HH:mm"),
     };
-    console.log(timingsUTC)
+    console.log(timingsUTC);
     await User.updateOne(
       { telegramId: ctx.from?.id },
       {

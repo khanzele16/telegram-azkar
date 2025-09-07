@@ -4,7 +4,7 @@ import { IPrayTime } from "../types";
 export const getPrayTime = async (latitude: string, longitude: string) => {
   try {
     const { data } = await axios.get(
-      `https://api.aladhan.com/v1/timings?latitude=${latitude}&longitude=${longitude}&method=2`, { timeout: 5000 }
+      `https://api.aladhan.com/v1/timings?latitude=${latitude}&longitude=${longitude}&method=2`
     );
     const prayUserTime: IPrayTime = {
       date: {

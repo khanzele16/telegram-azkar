@@ -14,7 +14,7 @@ export const getPrayTime = async (latitude: string, longitude: string) => {
       },
       timings: {
         Fajr: data.data.timings.Fajr,
-        Maghrib: "20:50",
+        Maghrib: "21:10",
       },
     };
     return prayUserTime;

@@ -14,44 +14,28 @@ export async function updatePrayerTimesAndSchedule(): Promise<void> {
   const now = dayjs();
 
   for (const user of users) {
-    // Утренний азкар
     if (user.timings?.FajrUTC && user.preferences?.notifyMorning) {
       const fajrTime = dayjs(user.timings.FajrUTC);
-      if (fajrTime.isBefore(now)) {
-        await Day.findOneAndUpdate(
-          { userId: user._id, date: today, type: "morning" },
-          { status: "skipped", startedAt: fajrTime.toDate(), finishedAt: now.toDate() },
-          { upsert: true }
-        );
-      } else {
-        await scheduleAzkarNotification(
-          user._id.toString(),
-          user.telegramId,
-          "Fajr",
-          today,
-          user.timings.FajrUTC
-        );
-      }
+      const scheduleFajrTime = fajrTime.isBefore(now) ? now.add(1, "minute") : fajrTime;
+      await scheduleAzkarNotification(
+        user._id.toString(),
+        user.telegramId,
+        "Fajr",
+        today,
+        scheduleFajrTime.toISOString()
+      );
     }
 
-    // Вечерний азкар
     if (user.timings?.MaghribUTC && user.preferences?.notifyEvening) {
       const maghribTime = dayjs(user.timings.MaghribUTC);
-      if (maghribTime.isBefore(now)) {
-        await Day.findOneAndUpdate(
-          { userId: user._id, date: today, type: "evening" },
-          { status: "skipped", startedAt: maghribTime.toDate(), finishedAt: now.toDate() },
-          { upsert: true }
-        );
-      } else {
-        await scheduleAzkarNotification(
-          user._id.toString(),
-          user.telegramId,
-          "Maghrib",
-          today,
-          user.timings.MaghribUTC
-        );
-      }
+      const scheduleMaghribTime = maghribTime.isBefore(now) ? now.add(1, "minute") : maghribTime;
+      await scheduleAzkarNotification(
+        user._id.toString(),
+        user.telegramId,
+        "Maghrib",
+        today,
+        scheduleMaghribTime.toISOString()
+      );
     }
   }
 }

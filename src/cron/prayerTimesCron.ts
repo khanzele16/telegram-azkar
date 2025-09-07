@@ -4,7 +4,7 @@ import { scheduleAzkarNotification } from "../queue/azkarQueue";
 
 export async function updatePrayerTimesAndSchedule(): Promise<void> {
   const users = await User.find({
-    "timings.fajrUTC": { $exists: true },
+    "timings.FajrUTC": { $exists: true },
     telegramId: { $exists: true },
   });
   const today = new Date().toISOString().slice(0, 10);

@@ -67,7 +67,7 @@ export const locationConversation = async (
         .utc()
         .format("HH:mm"),
     };
-
+    console.log(timingsUTC)
     await User.updateOne(
       { telegramId: ctx.from?.id },
       {

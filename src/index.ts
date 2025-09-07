@@ -48,6 +48,7 @@ bot.use(createConversation(locationConversation, { plugins: [hydrate()] }));
 
 commands.forEach((command) => {
   bot.command(command.command, command.action);
+  bot.callbackQuery(command.command, command.action);
 });
 
 bot.on("callback_query", handleCallbackQuery);

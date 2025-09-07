@@ -5,19 +5,27 @@ import { statsHandler } from "./statsHandler";
 
 export const menuButtons = new Menu<MyContext>("menu")
   .text("👤 Мой профиль", async (ctx) => {
-    await ctx.answerCallbackQuery();
+    await ctx.answerCallbackQuery("👤 Мой профиль");
     ctx.menu.close();
     await profileHandler(ctx);
   })
   .row()
+  .text("📍 Геолокация", async (ctx) => {
+    await ctx.answerCallbackQuery("📍 Геолокация");
+    ctx.menu.close();
+    await ctx.conversation.enter("locationConversation");
+  })
   .text("🗓 Статистика", async (ctx) => {
-    await ctx.answerCallbackQuery();
+    await ctx.answerCallbackQuery("🗓 Статистика");
     ctx.menu.close();
     await statsHandler(ctx);
   })
   .row()
   .text("❓ Помощь", async (ctx) => {
-    await ctx.answerCallbackQuery();
+    await ctx.answerCallbackQuery("❓ Помощь");
     ctx.menu.close();
-    await ctx.reply("<b>Помощь</b>\n\nМы отправляем азкары для чтения и запоминания.", { parse_mode: "HTML" });
+    await ctx.reply(
+      "<b>❓ Помощь</b>\n\nМы отправляем азкары для чтения и запоминания.\nЕсли возникли какие-то трудности — @khanzele",
+      { parse_mode: "HTML" }
+    );
   });

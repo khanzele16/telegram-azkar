@@ -24,40 +24,51 @@ export async function sendAzkarNotification(
 ): Promise<void> {
   const targetChatId = chatId || telegramId;
   const user = await User.findOne({ telegramId });
-  
+
   if (!user) return;
 
-  const existingDay = await Day.findOne({
-    userId: user._id,
-    date,
-    type: prayer === "Fajr" ? "morning" : "evening",
-  });
-
-  if (existingDay && ["read", "skipped"].includes(existingDay.status)) {
-    console.log("❌ Уведомление уже отправлено/день помечен пропущенным");
-    return;
-  }
-
-  const keyboard = new InlineKeyboard()
-    .text("📖 Прочитать", `azkarnotify:read:${prayer}:${date}`)
-    .text("⏰ Отложить (1 ч)", `azkarnotify:postpone:${prayer}:${date}`)
-    .row()
-    .text("❌ Сегодня не буду", `azkarnotify:skip:${prayer}:${date}`);
-
-  await api.sendMessage(
-    targetChatId,
-    `🕌 Время ${prayer === "Fajr" ? "утренних" : "вечерних"} азкаров.`,
-    { reply_markup: keyboard }
-  );
-
-  if (!existingDay) {
-    await Day.create({
+  try {
+    const existingDay = await Day.findOne({
       userId: user._id,
       date,
       type: prayer === "Fajr" ? "morning" : "evening",
-      status: "pending",
-      startedAt: new Date(),
     });
+
+    if (existingDay && ["read", "skipped"].includes(existingDay.status)) {
+      console.log("❌ Уведомление уже отправлено/день помечен пропущенным");
+      return;
+    }
+
+    const keyboard = new InlineKeyboard()
+      .text("📖 Прочитать", `azkarnotify:read:${prayer}:${date}`)
+      .text("⏰ Отложить (1 ч)", `azkarnotify:postpone:${prayer}:${date}`)
+      .row()
+      .text("❌ Сегодня не буду", `azkarnotify:skip:${prayer}:${date}`);
+
+    const ctx_message = await api.sendMessage(
+      targetChatId,
+      `🕌 Время ${prayer === "Fajr" ? "утренних" : "вечерних"} азкаров.`,
+      { reply_markup: keyboard }
+    );
+
+    if (!existingDay) {
+      await Day.create({
+        userId: user._id,
+        date,
+        type: prayer === "Fajr" ? "morning" : "evening",
+        status: "pending",
+        startedAt: new Date(),
+        messageId: ctx_message.message_id,
+      });
+    } else {
+      await Day.updateOne(
+        { _id: existingDay._id },
+        { messageId: ctx_message.message_id }
+      );
+    }
+  } catch (err) {
+    console.log(err);
+    throw err;
   }
 }
 
@@ -190,14 +201,17 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
     return;
   }
 
-  const [, sliderId, action] = data.split(":");
+  const parts = data.split(":");
+
+  const action = parts.pop(); 
+  const sliderId = parts.slice(1).join(":");
+
   const state = sliderStates.get(sliderId);
 
   if (!state) {
     await ctx.answerCallbackQuery("Слайдер устарел");
     return;
   }
-
   const total = state.azkarIds.length;
 
   if (action === "prev") {

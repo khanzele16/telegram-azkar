@@ -4,6 +4,8 @@ import { type MyContext } from "../types";
 import { menuButtons } from "./menu";
 import { profileHandler } from "./index";
 import { statsHandler } from "./statsHandler";
+import { StreakService } from "../services/StreakService";
+import dayjs from "dayjs";
 
 export const start = async (ctx: MyContext) => {
   try {
@@ -29,22 +31,18 @@ export const menu = async (ctx: MyContext) => {
       await ctx.reply("Ошибка: не удалось определить пользователя");
       return;
     }
-
     const user = await User.findOne({ telegramId: ctx.from.id });
-    
     if (!user) {
       await ctx.reply(
         "Вы не зарегистрированы. Используйте /start для регистрации."
       );
       return;
     }
-
     if (!user.location?.latitude || !user.location?.longitude) {
       await ctx.reply("Вы не установили местоположение");
       await ctx.conversation.enter("locationConversation");
       return;
     }
-
     await ctx.reply("📌 Главное меню\n\nВыберите действие:", {
       reply_markup: menuButtons,
     });
@@ -59,9 +57,11 @@ export const stats = async (ctx: MyContext) => {
     await statsHandler(ctx);
   } catch (error) {
     console.error("Error in stats command:", error);
-    await ctx.reply("Произошла ошибка при загрузке статистики. Попробуйте позже.");
+    await ctx.reply(
+      "Произошла ошибка при загрузке статистики. Попробуйте позже."
+    );
   }
-}
+};
 
 export const location = async (ctx: MyContext) => {
   try {

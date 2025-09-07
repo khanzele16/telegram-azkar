@@ -61,6 +61,7 @@ export interface IDay {
   startedAt?: Date;
   finishedAt?: Date;
   postponedUntil?: Date;
+  messageId: number;
   createdAt?: Date;
   updatedAt?: Date;
 }

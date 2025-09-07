@@ -14,6 +14,9 @@ import {
 import { hydrate } from "@grammyjs/hydrate";
 import { menuButtons } from "./handlers/menu";
 import { startPrayerTimesCron } from "./cron/prayerTimesCron";
+import { JobsOptions, Queue, QueueEvents, Worker } from "bullmq";
+import Redis from "ioredis";
+import { sendAzkarNotification } from "./handlers/azkarNotification";
 
 dotenv.config({ path: "src/.env", override: true });
 
@@ -62,6 +65,103 @@ bot.catch((err) => {
     console.error("❌ Неизвестная ошибка:", e);
   }
 });
+
+const connection = new Redis(process.env.REDIS_URL as string, {
+  tls: {},
+  maxRetriesPerRequest: null,
+});
+
+export type PrayerType = "Fajr" | "Maghrib";
+
+export const azkarQueue = new Queue("azkar", { connection });
+export const azkarQueueEvents = new QueueEvents("azkar", { connection });
+
+function jobKey(userId: string, prayer: PrayerType, date: string) {
+  return `${userId}:${prayer}:${date}`;
+}
+
+export async function scheduleAzkarNotification(
+  userId: string,
+  telegramId: number,
+  prayer: PrayerType,
+  date: string,
+  runAtISO: string,
+  chatId?: number
+): Promise<void> {
+  const delay = Math.max(0, new Date(runAtISO).getTime() - Date.now());
+  const jobId = jobKey(userId, prayer, date);
+
+  const opts: JobsOptions = {
+    jobId,
+    delay,
+    attempts: 3,
+    removeOnComplete: true,
+    removeOnFail: 50,
+  };
+
+  await azkarQueue.add(
+    "send",
+    { userId, telegramId, prayer, date, chatId },
+    opts
+  );
+}
+
+export async function postponeAzkarNotification(
+  userId: string,
+  telegramId: number,
+  prayer: PrayerType,
+  date: string,
+  chatId?: number
+): Promise<void> {
+  const jobId = jobKey(userId, prayer, date);
+  try {
+    await azkarQueue.remove(jobId);
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+
+  const delay = 60 * 60 * 1000;
+  await azkarQueue.add(
+    "send",
+    { userId, telegramId, prayer, date, chatId },
+    {
+      jobId,
+      delay,
+      attempts: 3,
+      removeOnComplete: true,
+      removeOnFail: 50,
+    }
+  );
+}
+
+export async function cancelAzkarNotification(
+  userId: string,
+  prayer: PrayerType,
+  date: string
+): Promise<void> {
+  const jobId = jobKey(userId, prayer, date);
+  try {
+    await azkarQueue.remove(jobId);
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+}
+
+export const azkarWorker = new Worker(
+  "azkar",
+  async (job) => {
+    const { telegramId, prayer, date, chatId } = job.data as {
+      telegramId: number;
+      prayer: PrayerType;
+      date: string;
+      chatId?: number;
+    };
+    await sendAzkarNotification(telegramId, prayer, date, chatId);
+  },
+  { connection, concurrency: 5 }
+);
 
 startPrayerTimesCron();
 

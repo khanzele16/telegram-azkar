@@ -55,16 +55,20 @@ export const locationConversation = async (
     );
     const dateStr = prayTime.date.readable;
     const timingsUTC = {
-      Fajr: dayjs(`${dateStr} ${prayTime.timings.Fajr}`, "D MMM YYYY HH:mm")
+      FajrUTC: dayjs
+        .unix(prayTime.date.timestamp)
+        .hour(Number(prayTime.timings.Fajr.split(":")[0]))
+        .minute(Number(prayTime.timings.Fajr.split(":")[1]))
         .utc()
         .format("HH:mm"),
-      Maghrib: dayjs(
-        `${dateStr} ${prayTime.timings.Maghrib}`,
-        "D MMM YYYY HH:mm"
-      )
+      MaghribUTC: dayjs
+        .unix(prayTime.date.timestamp)
+        .hour(Number(prayTime.timings.Maghrib.split(":")[0]))
+        .minute(Number(prayTime.timings.Maghrib.split(":")[1]))
         .utc()
         .format("HH:mm"),
     };
+
     await User.updateOne(
       { telegramId: ctx.from?.id },
       {

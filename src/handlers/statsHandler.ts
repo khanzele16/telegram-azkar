@@ -5,6 +5,7 @@ import User from "../database/models/User";
 import { InlineKeyboard } from "grammy";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { generateCalendarMarkup } from "../shared/calendarMarkup";
 
 dayjs.extend(utc);
 
@@ -17,7 +18,9 @@ export async function statsHandler(ctx: MyContext): Promise<void> {
 
     const user = await User.findOne({ telegramId: ctx.from.id });
     if (!user) {
-      await ctx.reply("❌ Пользователь не найден. Используйте /start для регистрации.");
+      await ctx.reply(
+        "❌ Пользователь не найден. Используйте /start для регистрации."
+      );
       return;
     }
 
@@ -47,7 +50,9 @@ export async function handleCalendarNavigation(
 ): Promise<void> {
   try {
     if (!ctx.from?.id) {
-      await ctx.answerCallbackQuery("❌ Ошибка: не удалось определить пользователя");
+      await ctx.answerCallbackQuery(
+        "❌ Ошибка: не удалось определить пользователя"
+      );
       return;
     }
 
@@ -57,9 +62,12 @@ export async function handleCalendarNavigation(
       return;
     }
 
-    // прогрузим календарь (если нужно — для будущего расширения)
-    await CalendarService.getMonthCalendar(user._id, year, month);
-    const keyboard = createCalendarKeyboard(year, month);
+    const calendar = await CalendarService.getMonthCalendar(
+      user._id,
+      year,
+      month
+    );
+    const keyboard = generateCalendarMarkup(calendar, year, month);
 
     await ctx.editMessageText("📊 <b>Статистика</b>", {
       reply_markup: keyboard,
@@ -89,10 +97,8 @@ function formatProfileStats(stats: {
   } else {
     message += `📅 <b>Последнее чтение:</b> Никогда\n\n`;
   }
-
-  message += `📈 <b>Общая статистика:</b>\n`;
-  message += `   ✅ Прочитано дней: ${stats.totalReadDays}\n`;
-  message += `   ❌ Пропущено дней: ${stats.totalSkippedDays}\n`;
+  message += `✅ Прочитано дней: ${stats.totalReadDays}\n`;
+  message += `❌ Пропущено дней: ${stats.totalSkippedDays}\n`;
 
   return message;
 }
@@ -117,8 +123,18 @@ function createCalendarKeyboard(year: number, month: number): InlineKeyboard {
 
 function getMonthName(month: number): string {
   const months = [
-    "Январь","Февраль","Март","Апрель","Май","Июнь",
-    "Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"
+    "Январь",
+    "Февраль",
+    "Март",
+    "Апрель",
+    "Май",
+    "Июнь",
+    "Июль",
+    "Август",
+    "Сентябрь",
+    "Октябрь",
+    "Ноябрь",
+    "Декабрь",
   ];
   return months[month - 1];
 }

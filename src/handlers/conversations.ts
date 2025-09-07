@@ -53,7 +53,6 @@ export const locationConversation = async (
       latitude.toString(),
       longitude.toString()
     );
-    const dateStr = prayTime.date.readable;
     const timingsUTC = {
       FajrUTC: dayjs
         .unix(prayTime.date.timestamp)
@@ -73,12 +72,11 @@ export const locationConversation = async (
       { telegramId: ctx.from?.id },
       {
         $set: {
-          location: {
-            latitude: latitude.toString(),
-            longitude: longitude.toString(),
-          },
+          "location.latitude": latitude.toString(),
+          "location.longitude": longitude.toString(),
+          "timings.FajrUTC": timingsUTC.FajrUTC,
+          "timings.MaghribUTC": timingsUTC.MaghribUTC,
           date: prayTime.date,
-          timings: timingsUTC,
           localTimings: prayTime.timings,
         },
       },

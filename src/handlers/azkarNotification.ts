@@ -1,15 +1,12 @@
 import { Api, InlineKeyboard } from "grammy";
 import User from "../database/models/User";
 import Azkar from "../database/models/Azkar";
-import Reading from "../database/models/Reading";
-import { StreakService } from "../services/streakService";
-import {
-  postponeAzkarNotification,
-  cancelAzkarNotification,
-} from "../queue/azkarQueue";
+import { StreakService } from "../services/StreakService";
+import { postponeAzkarNotification, cancelAzkarNotification } from "../";
 import { Types } from "mongoose";
 import { MyContext } from "../types";
 import dotenv from "dotenv";
+import Day from "../database/models/Day";
 
 dotenv.config({ path: "src/.env" });
 
@@ -26,6 +23,20 @@ export async function sendAzkarNotification(
   chatId?: number
 ): Promise<void> {
   const targetChatId = chatId || telegramId;
+  const user = await User.findOne({ telegramId });
+  
+  if (!user) return;
+
+  const existingDay = await Day.findOne({
+    userId: user._id,
+    date,
+    type: prayer === "Fajr" ? "morning" : "evening",
+  });
+
+  if (existingDay && ["read", "skipped"].includes(existingDay.status)) {
+    console.log("❌ Уведомление уже отправлено/день помечен пропущенным");
+    return;
+  }
 
   const keyboard = new InlineKeyboard()
     .text("📖 Прочитать", `azkarnotify:read:${prayer}:${date}`)
@@ -39,13 +50,14 @@ export async function sendAzkarNotification(
     { reply_markup: keyboard }
   );
 
-  const user = await User.findOne({ telegramId });
-  if (user) {
-    await Reading.findOneAndUpdate(
-      { userId: user._id, date },
-      { status: "pending", startedAt: new Date() },
-      { upsert: true }
-    );
+  if (!existingDay) {
+    await Day.create({
+      userId: user._id,
+      date,
+      type: prayer === "Fajr" ? "morning" : "evening",
+      status: "pending",
+      startedAt: new Date(),
+    });
   }
 }
 
@@ -68,8 +80,13 @@ async function startAzkarSlider(
   prayer: "Fajr" | "Maghrib",
   date: string
 ) {
+  const type = prayer === "Fajr" ? "morning" : "evening";
+
+  const dayRecord = await Day.findOne({ userId, date, type });
+  const alreadyReadIds = dayRecord?.azkarIds || [];
+
   const azkar = await Azkar.aggregate([
-    { $match: { category: prayer.toLowerCase() } },
+    { $match: { category: type, _id: { $nin: alreadyReadIds } } },
     { $sample: { size: 10 } },
   ]);
 

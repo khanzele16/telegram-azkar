@@ -17,6 +17,7 @@ import { startPrayerTimesCron } from "./cron/prayerTimesCron";
 import { JobsOptions, Queue, QueueEvents, Worker } from "bullmq";
 import Redis from "ioredis";
 import { sendAzkarNotification } from "./handlers/azkarNotification";
+import Day from "./database/models/Day";
 
 dotenv.config({ path: "src/.env", override: true });
 
@@ -83,26 +84,24 @@ function jobKey(userId: string, prayer: PrayerType, date: string) {
 export async function scheduleAzkarNotification(
   userId: string,
   telegramId: number,
-  prayer: PrayerType,
+  prayer: "Fajr" | "Maghrib",
   date: string,
   runAtISO: string,
   chatId?: number
 ): Promise<void> {
-  const delay = Math.max(0, new Date(runAtISO).getTime() - Date.now());
-  const jobId = jobKey(userId, prayer, date);
+  const type = prayer === "Fajr" ? "morning" : "evening";
 
-  const opts: JobsOptions = {
-    jobId,
-    delay,
-    attempts: 3,
-    removeOnComplete: true,
-    removeOnFail: 50,
-  };
+  const existing = await Day.findOne({ userId, date, type });
+  if (existing && (existing.status === "skipped" || existing.status === "read"))
+    return;
+
+  const delay = Math.max(0, new Date(runAtISO).getTime() - Date.now());
+  const jobId = `${userId}:${prayer}:${date}`;
 
   await azkarQueue.add(
     "send",
     { userId, telegramId, prayer, date, chatId },
-    opts
+    { jobId, delay, attempts: 3, removeOnComplete: true, removeOnFail: 50 }
   );
 }
 

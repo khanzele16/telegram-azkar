@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
 import { MyContext } from "../types";
-import { StreakService } from "../services/streakService";
+import { StreakService } from "../services/StreakService";
 import User from "../database/models/User";
 import { CalendarService } from "../services/CalendarService";
 import { generateCalendarMarkup } from "../shared/calendarMarkup";

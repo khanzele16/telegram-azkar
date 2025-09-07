@@ -1,6 +1,6 @@
 import cron from "node-cron";
 import User from "../database/models/User";
-import { scheduleAzkarNotification } from "../queue/azkarQueue";
+import { scheduleAzkarNotification } from "../";
 
 export async function updatePrayerTimesAndSchedule(): Promise<void> {
   const users = await User.find({

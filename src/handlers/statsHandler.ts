@@ -1,10 +1,10 @@
-import { MyContext } from "../types";
-import { StreakService } from "../services/streakService";
-import { CalendarService } from "../services/CalendarService";
-import User from "../database/models/User";
-import { InlineKeyboard } from "grammy";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import User from "../database/models/User";
+import { MyContext } from "../types";
+import { InlineKeyboard } from "grammy";
+import { StreakService } from "../services/StreakService";
+import { CalendarService } from "../services/CalendarService";
 import { generateCalendarMarkup } from "../shared/calendarMarkup";
 
 dayjs.extend(utc);

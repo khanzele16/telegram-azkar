@@ -9,6 +9,7 @@ import { getPrayTime } from "../shared/requests";
 import { IPrayTime, MyConversation, MyConversationContext } from "../types";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { updatePrayerTimesAndSchedule } from "../cron/prayerTimesCron";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -40,8 +41,10 @@ export const locationConversation = async (
     "<b>⚙️ Настройка бота:</b>\n\n🏝 Чтобы мы могли отправлять вам утренние и вечерние азкары, отправьте геолокацию для настройки местного времени намаза.",
     { parse_mode: "HTML", reply_markup: locationKeyboard }
   );
+
   const { message } = await conversation.waitFor(":location");
   await ctx.reply("📍", { reply_markup: { remove_keyboard: true } });
+
   if (!message?.location) {
     await ctx.reply(
       "<b>❌ Не удалось получить геолокацию</b>\n\nПопробуйте снова через команду /start.",
@@ -49,14 +52,14 @@ export const locationConversation = async (
     );
     return;
   }
+
   const { latitude, longitude } = message.location;
+
   try {
     const prayTime: IPrayTime = await getPrayTime(
       latitude.toString(),
       longitude.toString()
     );
-
-    console.log(prayTime)
 
     const fajrLocal = dayjs
       .unix(prayTime.date.timestamp)
@@ -75,9 +78,7 @@ export const locationConversation = async (
       MaghribUTC: maghribLocal.utc().toISOString(),
     };
 
-    console.log("timingsUTC", timingsUTC);
-
-    await User.updateOne(
+    await User.findOneAndUpdate(
       { telegramId: ctx.from?.id },
       {
         $set: {
@@ -89,8 +90,10 @@ export const locationConversation = async (
           localTimings: prayTime.timings,
         },
       },
-      { upsert: true }
+      { upsert: true, new: true }
     );
+
+    await updatePrayerTimesAndSchedule();
 
     await ctx.reply(
       `<b>🌞 Ваше местное время намаза на ${dayjs(
@@ -104,6 +107,8 @@ export const locationConversation = async (
     );
   } catch (err) {
     console.error(err);
-    throw err;
+    await ctx.reply(
+      "❌ Ошибка при получении времени намаза. Попробуйте снова."
+    );
   }
 };

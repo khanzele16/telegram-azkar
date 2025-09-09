@@ -22,7 +22,6 @@ dotenv.config({ path: "src/.env", override: true });
 
 const bot = new Bot<MyContext>(process.env.BOT_TOKEN as string);
 
-// Подключение MongoDB
 mongoose
   .connect(process.env.MONGO_URI as string)
   .then(() => console.log("✅ База данных подключена успешно"))
@@ -33,7 +32,6 @@ mongoose
 
 bot.api.setMyCommands(commands);
 
-// Middleware и команды
 bot.use(conversations<MyContext, MyConversationContext>());
 bot.use(menuButtons);
 
@@ -68,14 +66,12 @@ bot.catch((err) => {
   }
 });
 
-// 🔹 Локальный Redis (без TLS)
 const connection = new Redis(process.env.REDIS_URL as string, {
   maxRetriesPerRequest: null,
 });
 
 export type PrayerType = "Fajr" | "Maghrib";
 
-// Очередь и события
 export const azkarQueue = new Queue("azkar", { connection });
 export const azkarQueueEvents = new QueueEvents("azkar", { connection });
 
@@ -83,7 +79,6 @@ function jobKey(userId: string, prayer: PrayerType, date: string) {
   return `${userId}:${prayer}:${date}`;
 }
 
-// Планирование уведомления
 export async function scheduleAzkarNotification(
   userId: string,
   telegramId: number,
@@ -111,7 +106,6 @@ export async function scheduleAzkarNotification(
   );
 }
 
-// Отложить уведомление
 export async function postponeAzkarNotification(
   userId: string,
   telegramId: number,
@@ -126,7 +120,7 @@ export async function postponeAzkarNotification(
     console.error(err);
   }
 
-  const delay = 60 * 60 * 1000; // 1 час
+  const delay = 60 * 60 * 1000;
   await azkarQueue.add(
     "send",
     { userId, telegramId, prayer, date, chatId },
@@ -140,7 +134,6 @@ export async function postponeAzkarNotification(
   );
 }
 
-// Отменить уведомление
 export async function cancelAzkarNotification(
   userId: string,
   prayer: PrayerType,
@@ -154,7 +147,6 @@ export async function cancelAzkarNotification(
   }
 }
 
-// Worker
 export const azkarWorker = new Worker(
   "azkar",
   async (job) => {
@@ -169,8 +161,6 @@ export const azkarWorker = new Worker(
   { connection, concurrency: 5 }
 );
 
-// Запуск cron
 startPrayerTimesCron();
 
-// Запуск бота
 bot.start();

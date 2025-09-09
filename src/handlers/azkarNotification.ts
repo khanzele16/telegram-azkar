@@ -177,7 +177,7 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
     type: prayer === "Fajr" ? "morning" : "evening",
   });
 
-  // Отложить
+  // ⏰ Отложить
   if (action === "postpone") {
     await postponeAzkarNotification(
       user._id.toString(),
@@ -186,11 +186,26 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
       date,
       ctx.chat!.id
     );
+
+    if (dayRecord?.messageId) {
+      try {
+        await ctx.api.editMessageReplyMarkup(
+          ctx.chat!.id,
+          dayRecord.messageId,
+          {
+            reply_markup: { inline_keyboard: [] },
+          }
+        );
+      } catch (err) {
+        console.log("Не удалось убрать клавиатуру:", err);
+      }
+    }
+
     await ctx.answerCallbackQuery("⏰ Отложено на 1 час");
     return;
   }
 
-  // Пропустить
+  // ❌ Пропустить
   if (action === "skip") {
     await cancelAzkarNotification(user._id.toString(), prayer as any, date);
 
@@ -200,7 +215,6 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
       prayer === "Fajr" ? "morning" : "evening"
     );
 
-    // Обновляем уведомление
     if (dayRecord?.messageId) {
       try {
         await ctx.api.editMessageText(
@@ -218,23 +232,24 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
     await ctx.answerCallbackQuery("День отмечен как пропущенный");
     return;
   }
-
-  // Прочитать
   if (action === "read") {
-    // Удаляем уведомление
     if (dayRecord?.messageId) {
       try {
-        await ctx.api.deleteMessage(ctx.chat!.id, dayRecord.messageId);
+        await ctx.api.editMessageReplyMarkup(
+          ctx.chat!.id,
+          dayRecord.messageId,
+          {
+            reply_markup: { inline_keyboard: [] },
+          }
+        );
       } catch (err) {
-        console.log("Не удалось удалить сообщение уведомления:", err);
+        console.log("Не удалось убрать клавиатуру:", err);
       }
     }
-
     await startAzkarSlider(ctx, user._id, ctx.chat!.id, prayer as any, date);
     await ctx.answerCallbackQuery();
     return;
   }
-
   await ctx.answerCallbackQuery("❌ Неизвестное действие");
 }
 

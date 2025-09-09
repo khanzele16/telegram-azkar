@@ -1,6 +1,5 @@
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-import * as net from "node:net";
 import { conversations, createConversation } from "@grammyjs/conversations";
 import { Bot, GrammyError, HttpError, NextFunction } from "grammy";
 import { type MyConversationContext, type MyContext } from "./types";
@@ -23,6 +22,7 @@ dotenv.config({ path: "src/.env", override: true });
 
 const bot = new Bot<MyContext>(process.env.BOT_TOKEN as string);
 
+// Подключение MongoDB
 mongoose
   .connect(process.env.MONGO_URI as string)
   .then(() => console.log("✅ База данных подключена успешно"))
@@ -33,6 +33,7 @@ mongoose
 
 bot.api.setMyCommands(commands);
 
+// Middleware и команды
 bot.use(conversations<MyContext, MyConversationContext>());
 bot.use(menuButtons);
 
@@ -52,7 +53,6 @@ commands.forEach((command) => {
 });
 
 bot.on("callback_query", handleCallbackQuery);
-
 bot.on("message", messageHandler);
 
 bot.catch((err) => {
@@ -68,13 +68,14 @@ bot.catch((err) => {
   }
 });
 
+// 🔹 Локальный Redis (без TLS)
 const connection = new Redis(process.env.REDIS_URL as string, {
-  tls: {},
   maxRetriesPerRequest: null,
 });
 
 export type PrayerType = "Fajr" | "Maghrib";
 
+// Очередь и события
 export const azkarQueue = new Queue("azkar", { connection });
 export const azkarQueueEvents = new QueueEvents("azkar", { connection });
 
@@ -82,6 +83,7 @@ function jobKey(userId: string, prayer: PrayerType, date: string) {
   return `${userId}:${prayer}:${date}`;
 }
 
+// Планирование уведомления
 export async function scheduleAzkarNotification(
   userId: string,
   telegramId: number,
@@ -97,12 +99,10 @@ export async function scheduleAzkarNotification(
     return;
 
   const delay = Math.max(0, new Date(runAtISO).getTime() - Date.now());
-  const jobId = `${userId}:${prayer}:${date}`;
+  const jobId = jobKey(userId, prayer, date);
 
   const existingJob = await azkarQueue.getJob(jobId);
-  if (existingJob) {
-    return;
-  }
+  if (existingJob) return;
 
   await azkarQueue.add(
     "send",
@@ -111,6 +111,7 @@ export async function scheduleAzkarNotification(
   );
 }
 
+// Отложить уведомление
 export async function postponeAzkarNotification(
   userId: string,
   telegramId: number,
@@ -122,11 +123,10 @@ export async function postponeAzkarNotification(
   try {
     await azkarQueue.remove(jobId);
   } catch (err) {
-    console.log(err);
-    throw err;
+    console.error(err);
   }
 
-  const delay = 60 * 60 * 1000;
+  const delay = 60 * 60 * 1000; // 1 час
   await azkarQueue.add(
     "send",
     { userId, telegramId, prayer, date, chatId },
@@ -140,6 +140,7 @@ export async function postponeAzkarNotification(
   );
 }
 
+// Отменить уведомление
 export async function cancelAzkarNotification(
   userId: string,
   prayer: PrayerType,
@@ -149,11 +150,11 @@ export async function cancelAzkarNotification(
   try {
     await azkarQueue.remove(jobId);
   } catch (err) {
-    console.log(err);
-    throw err;
+    console.error(err);
   }
 }
 
+// Worker
 export const azkarWorker = new Worker(
   "azkar",
   async (job) => {
@@ -168,6 +169,8 @@ export const azkarWorker = new Worker(
   { connection, concurrency: 5 }
 );
 
+// Запуск cron
 startPrayerTimesCron();
 
+// Запуск бота
 bot.start();

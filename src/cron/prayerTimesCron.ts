@@ -1,46 +1,61 @@
 import cron from "node-cron";
 import dayjs from "dayjs";
 import User from "../database/models/User";
-import Day from "../database/models/Day";
-import { scheduleAzkarNotification } from "../";
+import { scheduleAzkarNotification, PrayerType } from "../index";
 
 export async function updatePrayerTimesAndSchedule(): Promise<void> {
-  const users = await User.find({
-    "timings.FajrUTC": { $exists: true },
-    telegramId: { $exists: true },
-  });
+  try {
+    const users = await User.find({
+      "timings.FajrUTC": { $exists: true },
+      "timings.MaghribUTC": { $exists: true },
+    });
 
-  const today = dayjs().format("YYYY-MM-DD");
-  const now = dayjs();
+    const now = dayjs().utc();
 
-  for (const user of users) {
-    if (user.timings?.FajrUTC && user.preferences?.notifyMorning) {
-      const fajrTime = dayjs(user.timings.FajrUTC);
-      const scheduleFajrTime = fajrTime.isBefore(now)
-        ? now.add(1, "minute")
-        : fajrTime;
-      await scheduleAzkarNotification(
-        user._id.toString(),
-        user.telegramId,
-        "Fajr",
-        today,
-        scheduleFajrTime.toISOString()
-      );
+    for (const user of users) {
+      if (!user.timings) continue;
+
+      const userId = user._id.toString();
+      const telegramId = user.telegramId;
+
+      const prayers: PrayerType[] = ["Fajr", "Maghrib"];
+
+      for (const prayer of prayers) {
+        const timingUTC = user.timings[`${prayer}UTC`];
+        if (!timingUTC) continue;
+
+        let runAt = dayjs(timingUTC);
+        if (runAt.isBefore(now)) {
+          runAt = runAt.add(1, "day");
+        }
+
+        const date = runAt.format("YYYY-MM-DD");
+        const runAtISO = runAt.toISOString();
+
+        try {
+          await scheduleAzkarNotification(
+            userId,
+            telegramId,
+            prayer,
+            date,
+            runAtISO
+          );
+          console.log(
+            `✅ Запланировано ${prayer} для ${telegramId} на ${runAtISO}`
+          );
+        } catch (err) {
+          console.error(
+            `❌ Ошибка при планировании ${prayer} для ${telegramId}:`,
+            err
+          );
+        }
+      }
     }
-
-    if (user.timings?.MaghribUTC && user.preferences?.notifyEvening) {
-      const maghribTime = dayjs(user.timings.MaghribUTC);
-      const scheduleMaghribTime = maghribTime.isBefore(now)
-        ? now.add(1, "minute")
-        : maghribTime;
-      await scheduleAzkarNotification(
-        user._id.toString(),
-        user.telegramId,
-        "Maghrib",
-        today,
-        scheduleMaghribTime.toISOString()
-      );
-    }
+    console.log(
+      `✅ Обновлены задачи напоминаний для ${users.length} пользователей`
+    );
+  } catch (err) {
+    console.error("❌ Ошибка при обновлении расписания намазов:", err);
   }
 }
 
@@ -51,7 +66,7 @@ export function startPrayerTimesCron(): void {
       try {
         await updatePrayerTimesAndSchedule();
       } catch (e) {
-        console.error(e);
+        console.error("❌ Ошибка в cron при обновлении расписания:", e);
       }
     },
     { scheduled: true, timezone: "UTC" }

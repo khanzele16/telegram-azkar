@@ -1,5 +1,7 @@
 import User from "../database/models/User";
 import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+import dayjs from "dayjs";
 import {
   locationKeyboard,
   startKeyboard,
@@ -7,22 +9,29 @@ import {
 } from "../shared/keyboards";
 import { getPrayTime } from "../shared/requests";
 import { IPrayTime, MyConversation, MyConversationContext } from "../types";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
 import { updatePrayerTimesAndSchedule } from "../cron/prayerTimesCron";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.locale("ru");
 
+/**
+ * Первый экран приветствия
+ */
 export const startConversation = async (
   conversation: MyConversation,
   ctx: MyConversationContext
-) => {
+): Promise<void> => {
   const ctx_message = await ctx.reply(
-    "<b>Ассаляму Алейкум ва Рахматуллахи ва Баракатуh!</b>\n\nМир, милость и благословение Аллаха да будут с вами.\nДобро пожаловать в бот с азкарами 🌿\n\nЗдесь вы найдёте утренние и вечерние азкары, дуа перед сном, азкары после намаза, а также полезные напоминания и электронный тасбих.\n\nБот будет автоматически отправлять сообщения.",
+    "<b>Ассаляму Алейкум ва Рахматуллахи ва Баракатуh!</b>\n\n" +
+      "Мир, милость и благословение Аллаха да будут с вами.\n" +
+      "Добро пожаловать в бот с азкарами 🌿\n\n" +
+      "Здесь вы найдёте утренние и вечерние азкары, дуа перед сном, азкары после намаза, " +
+      "а также полезные напоминания и электронный тасбих.\n\n" +
+      "Бот будет автоматически отправлять сообщения.",
     { parse_mode: "HTML", reply_markup: startKeyboard }
   );
+
   const { callbackQuery } = await conversation.waitFor("callback_query");
   if (callbackQuery.data === "next:location") {
     await ctx.api.answerCallbackQuery(callbackQuery.id, {
@@ -33,12 +42,17 @@ export const startConversation = async (
   }
 };
 
+/**
+ * Установка геолокации пользователя и времени намаза
+ */
 export const locationConversation = async (
   conversation: MyConversation,
   ctx: MyConversationContext
-) => {
+): Promise<void> => {
   await ctx.reply(
-    "<b>⚙️ Настройка бота:</b>\n\n🏝 Чтобы мы могли отправлять вам утренние и вечерние азкары, отправьте геолокацию для настройки местного времени намаза.",
+    "<b>⚙️ Настройка бота:</b>\n\n" +
+      "🏝 Чтобы мы могли отправлять вам утренние и вечерние азкары, " +
+      "отправьте геолокацию для настройки местного времени намаза.",
     { parse_mode: "HTML", reply_markup: locationKeyboard }
   );
 
@@ -56,11 +70,19 @@ export const locationConversation = async (
   const { latitude, longitude } = message.location;
 
   try {
-    const prayTime: IPrayTime = await getPrayTime(
+    const prayTime: IPrayTime | null = await getPrayTime(
       latitude.toString(),
       longitude.toString()
     );
 
+    if (!prayTime) {
+      await ctx.reply(
+        "❌ Ошибка при получении времени намаза. Попробуйте снова."
+      );
+      return;
+    }
+
+    // Расчёт локального времени намаза
     const fajrLocal = dayjs
       .unix(prayTime.date.timestamp)
       .tz(prayTime.meta.timezone)
@@ -78,6 +100,7 @@ export const locationConversation = async (
       MaghribUTC: maghribLocal.utc().toISOString(),
     };
 
+    // Сохраняем в базу
     await User.findOneAndUpdate(
       { telegramId: ctx.from?.id },
       {
@@ -98,15 +121,14 @@ export const locationConversation = async (
     await ctx.reply(
       `<b>🌞 Ваше местное время намаза на ${dayjs(
         prayTime.date.timestamp * 1000
-      ).format("D MMMM YYYY")}</b>\n🌅 Фаджр — ${
-        prayTime.timings.Fajr
-      }\n🌃 Магриб — ${
-        prayTime.timings.Maghrib
-      }\n\n✅ Ваш аккаунт настроен, уведомления будут приходить автоматически.`,
+      ).format("D MMMM YYYY")}</b>\n` +
+        `🌅 Фаджр — ${prayTime.timings.Fajr}\n` +
+        `🌃 Магриб — ${prayTime.timings.Maghrib}\n\n` +
+        "✅ Ваш аккаунт настроен, уведомления будут приходить автоматически.",
       { parse_mode: "HTML", reply_markup: toMenuKeyboard }
     );
   } catch (err) {
-    console.error(err);
+    console.error("Ошибка в locationConversation:", err);
     await ctx.reply(
       "❌ Ошибка при получении времени намаза. Попробуйте снова."
     );

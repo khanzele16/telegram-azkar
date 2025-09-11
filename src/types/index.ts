@@ -10,8 +10,26 @@ export interface ICommand extends BotCommand {
   action: (ctx: MyContext) => Promise<void>;
 }
 
+export interface IPrayTimeResponse {
+  data: {
+    date: {
+      readable: string;
+      timestamp: string;
+    };
+    meta: {
+      timezone: string;
+    };
+    timings: {
+      Fajr: string;
+      Maghrib: string;
+    };
+  };
+}
+
 export interface IPrayTime {
-  meta: { timezone: string };
+  meta: {
+    timezone: string;
+  };
   date: {
     readable: string;
     timestamp: number;
@@ -23,7 +41,5 @@ export interface IPrayTime {
 }
 
 export type MyContext = ConversationFlavor<Context>;
-
 export type MyConversationContext = HydrateFlavor<Context>;
-
 export type MyConversation = Conversation<MyContext, MyConversationContext>;

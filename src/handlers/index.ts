@@ -16,15 +16,15 @@ export async function profileHandler(ctx: MyContext) {
     return;
   }
   const stats = await StreakService.getProfileStats(user._id);
-  const prayTime: IPrayTime = await getPrayTime(
+  const prayTime: IPrayTime | null = await getPrayTime(
     user.location?.latitude.toString(),
     user.location?.longitude.toString()
   );
 
   await ctx.reply(
     `<b>👤 Профиль — ${user.username || "Ваш"}</b>\n\n` +
-      `🌅 Утренний намаз (UTC): ${prayTime.timings.Fajr || "-"}\n` +
-      `🌃 Вечерний намаз (UTC): ${prayTime.timings.Maghrib || "-"}\n\n` +
+      `🌅 Утренний намаз (UTC): ${prayTime?.timings.Fajr || "-"}\n` +
+      `🌃 Вечерний намаз (UTC): ${prayTime?.timings.Maghrib || "-"}\n\n` +
       `🔥 Текущий стрик: ${stats.currentStreak} дней\n` +
       `📈 Прочитано дней: ${stats.totalReadDays}\n` +
       `❌ Пропущено дней: ${stats.totalSkippedDays}`,

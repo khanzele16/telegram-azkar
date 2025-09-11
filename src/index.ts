@@ -13,7 +13,7 @@ import {
 import { hydrate } from "@grammyjs/hydrate";
 import { menuButtons } from "./handlers/menu";
 import { startPrayerTimesCron } from "./cron/prayerTimesCron";
-import { JobsOptions, Queue, QueueEvents, Worker } from "bullmq";
+import { Queue, QueueEvents, Worker } from "bullmq";
 import Redis from "ioredis";
 import { sendAzkarNotification } from "./handlers/azkarNotification";
 import Day from "./database/models/Day";
@@ -82,27 +82,46 @@ function jobKey(userId: string, prayer: PrayerType, date: string) {
 export async function scheduleAzkarNotification(
   userId: string,
   telegramId: number,
-  prayer: "Fajr" | "Maghrib",
+  prayer: PrayerType,
   date: string,
-  runAtISO: string,
-  chatId?: number
+  runAtISO: string
 ): Promise<void> {
   const type = prayer === "Fajr" ? "morning" : "evening";
 
   const existing = await Day.findOne({ userId, date, type });
-  if (existing && (existing.status === "skipped" || existing.status === "read"))
+  if (existing && (existing.status === "skipped" || existing.status === "read")) {
+    console.log(`⏩ Пропуск: ${userId} уже ${existing.status} ${type} азкары`);
     return;
+  }
 
-  const delay = Math.max(0, new Date(runAtISO).getTime() - Date.now());
+  const runAt = new Date(runAtISO).getTime();
+  const now = Date.now();
+
+  if (runAt <= now) {
+    console.log(
+      `⚠️ Пропущено планирование: время ${runAtISO} уже прошло (${prayer})`
+    );
+    return;
+  }
+
+  const delay = runAt - now;
   const jobId = jobKey(userId, prayer, date);
 
-  const existingJob = await azkarQueue.getJob(jobId);
-  if (existingJob) return;
+  // Удаляем старое задание (если есть)
+  const oldJob = await azkarQueue.getJob(jobId);
+  if (oldJob) {
+    await oldJob.remove();
+    console.log(`🗑️ Удалено старое задание ${jobId}`);
+  }
 
   await azkarQueue.add(
     "send",
-    { userId, telegramId, prayer, date, chatId },
+    { userId, telegramId, prayer, date },
     { jobId, delay, attempts: 3, removeOnComplete: true, removeOnFail: 50 }
+  );
+
+  console.log(
+    `✅ Запланировано ${prayer} для ${userId} на ${new Date(runAt).toISOString()}`
   );
 }
 
@@ -110,27 +129,27 @@ export async function postponeAzkarNotification(
   userId: string,
   telegramId: number,
   prayer: PrayerType,
-  date: string,
-  chatId?: number
+  date: string
 ): Promise<void> {
   const jobId = jobKey(userId, prayer, date);
-  try {
-    await azkarQueue.remove(jobId);
-  } catch (err) {
-    console.error(err);
+
+  const oldJob = await azkarQueue.getJob(jobId);
+  if (oldJob) {
+    await oldJob.remove();
+    console.log(`🗑️ Старое задание ${jobId} удалено перед откладыванием`);
   }
 
-  const delay = 60 * 60 * 1000;
+  const delay = 60 * 60 * 1000; // 1 час
   await azkarQueue.add(
     "send",
-    { userId, telegramId, prayer, date, chatId },
-    {
-      jobId,
-      delay,
-      attempts: 3,
-      removeOnComplete: true,
-      removeOnFail: 50,
-    }
+    { userId, telegramId, prayer, date },
+    { jobId, delay, attempts: 3, removeOnComplete: true, removeOnFail: 50 }
+  );
+
+  console.log(
+    `⏰ Отложено ${prayer} для ${userId} на ${new Date(
+      Date.now() + delay
+    ).toISOString()}`
   );
 }
 
@@ -140,23 +159,22 @@ export async function cancelAzkarNotification(
   date: string
 ): Promise<void> {
   const jobId = jobKey(userId, prayer, date);
-  try {
-    await azkarQueue.remove(jobId);
-  } catch (err) {
-    console.error(err);
+  const oldJob = await azkarQueue.getJob(jobId);
+  if (oldJob) {
+    await oldJob.remove();
+    console.log(`❌ Уведомление отменено: ${jobId}`);
   }
 }
 
 export const azkarWorker = new Worker(
   "azkar",
   async (job) => {
-    const { telegramId, prayer, date, chatId } = job.data as {
+    const { telegramId, prayer, date } = job.data as {
       telegramId: number;
       prayer: PrayerType;
       date: string;
-      chatId?: number;
     };
-    await sendAzkarNotification(telegramId, prayer, date, chatId);
+    await sendAzkarNotification(telegramId, prayer, date);
   },
   { connection, concurrency: 5 }
 );

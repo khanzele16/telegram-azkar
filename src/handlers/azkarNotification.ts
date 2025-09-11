@@ -16,6 +16,9 @@ function prayerToType(prayer: "Fajr" | "Maghrib"): "morning" | "evening" {
   return prayer === "Fajr" ? "morning" : "evening";
 }
 
+/**
+ * Отправка уведомления с кнопками
+ */
 export async function sendAzkarNotification(
   telegramId: number,
   prayer: "Fajr" | "Maghrib",
@@ -31,11 +34,12 @@ export async function sendAzkarNotification(
     const existingDay = await Day.findOne({
       userId: user._id,
       date,
-      type: prayer === "Fajr" ? "morning" : "evening",
+      type: prayerToType(prayer),
     });
 
+    // уже прочитано или пропущено — уведомление не шлём
     if (existingDay && ["read", "skipped"].includes(existingDay.status)) {
-      console.log("❌ Уведомление уже отправлено/день помечен пропущенным");
+      console.log("❌ Уведомление уже было или день пропущен");
       return;
     }
 
@@ -55,7 +59,7 @@ export async function sendAzkarNotification(
       await Day.create({
         userId: user._id,
         date,
-        type: prayer === "Fajr" ? "morning" : "evening",
+        type: prayerToType(prayer),
         status: "pending",
         startedAt: new Date(),
         messageId: ctx_message.message_id,
@@ -67,11 +71,14 @@ export async function sendAzkarNotification(
       );
     }
   } catch (err) {
-    console.log(err);
+    console.log("sendAzkarNotification error:", err);
     throw err;
   }
 }
 
+/**
+ * Слайдер (чтение азкаров по одному)
+ */
 const sliderStates = new Map<
   string,
   {
@@ -91,7 +98,7 @@ async function startAzkarSlider(
   prayer: "Fajr" | "Maghrib",
   date: string
 ) {
-  const type = prayer === "Fajr" ? "morning" : "evening";
+  const type = prayerToType(prayer);
 
   const dayRecord = await Day.findOne({ userId, date, type });
   const alreadyReadIds = dayRecord?.azkarIds || [];
@@ -112,7 +119,7 @@ async function startAzkarSlider(
     date,
     userId,
     chatId,
-    type: prayerToType(prayer),
+    type,
   });
 
   const keyboard = buildSliderKeyboard(sliderId, 0, azkar.length);
@@ -157,102 +164,105 @@ function formatAzkarMessage(azkar: any, i: number, total: number): string {
   return msg;
 }
 
+/**
+ * Обработка callback-кнопок уведомлений
+ */
 export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
-  const data = ctx.callbackQuery?.data;
-  if (!data) {
-    await ctx.answerCallbackQuery("❌ Некорректные данные");
-    return;
-  }
+  try {
+    const data = ctx.callbackQuery?.data;
+    if (!data) {
+      await ctx.answerCallbackQuery("❌ Некорректные данные");
+      return;
+    }
 
-  const [, action, prayer, date] = data.split(":");
-  const user = await User.findOne({ telegramId: ctx.from!.id });
-  if (!user) {
-    await ctx.answerCallbackQuery("❌ Пользователь не найден");
-    return;
-  }
+    const [, action, prayer, date] = data.split(":");
+    const user = await User.findOne({ telegramId: ctx.from!.id });
+    if (!user) {
+      await ctx.answerCallbackQuery("❌ Пользователь не найден");
+      return;
+    }
 
-  const dayRecord = await Day.findOne({
-    userId: user._id,
-    date,
-    type: prayer === "Fajr" ? "morning" : "evening",
-  });
+    const type = prayer === "Fajr" ? "утренних" : "вечерних";
+    const dbType = prayerToType(prayer as "Fajr" | "Maghrib");
 
-  // ⏰ Отложить
-  if (action === "postpone") {
-    await postponeAzkarNotification(
-      user._id.toString(),
-      ctx.from!.id,
-      prayer as any,
+    const dayRecord = await Day.findOne({
+      userId: user._id,
       date,
-      ctx.chat!.id
-    );
+      type: dbType,
+    });
 
-    if (dayRecord?.messageId) {
-      try {
-        await ctx.api.editMessageReplyMarkup(
-          ctx.chat!.id,
-          dayRecord.messageId,
-          {
-            reply_markup: { inline_keyboard: [] },
-          }
-        );
-      } catch (err) {
-        console.log("Не удалось убрать клавиатуру:", err);
+    // ⏰ Отложить
+    if (action === "postpone") {
+      await postponeAzkarNotification(
+        user._id.toString(),
+        ctx.from!.id,
+        prayer as any,
+        date
+      );
+
+      if (dayRecord?.messageId) {
+        try {
+          await ctx.api.editMessageText(
+            ctx.chat!.id,
+            dayRecord.messageId,
+            `⏰ Вы отложили чтение ${type} азкаров на 1 час`
+          );
+        } catch (err) {
+          console.log("Не удалось обновить сообщение:", err);
+        }
       }
+
+      await ctx.answerCallbackQuery("⏰ Отложено на 1 час");
+      return;
     }
 
-    await ctx.answerCallbackQuery("⏰ Отложено на 1 час");
-    return;
-  }
+    // ❌ Пропустить
+    if (action === "skip") {
+      await cancelAzkarNotification(user._id.toString(), prayer as any, date);
+      await StreakService.markSkipped(user._id, date, dbType);
 
-  // ❌ Пропустить
-  if (action === "skip") {
-    await cancelAzkarNotification(user._id.toString(), prayer as any, date);
-
-    await StreakService.markSkipped(
-      user._id,
-      date,
-      prayer === "Fajr" ? "morning" : "evening"
-    );
-
-    if (dayRecord?.messageId) {
-      try {
-        await ctx.api.editMessageText(
-          ctx.chat!.id,
-          dayRecord.messageId,
-          `❌ Вы сегодня пропустили чтение ${
-            prayer === "Fajr" ? "утренних" : "вечерних"
-          } азкаров`
-        );
-      } catch (err) {
-        console.log("Не удалось обновить сообщение уведомления:", err);
+      if (dayRecord?.messageId) {
+        try {
+          await ctx.api.editMessageText(
+            ctx.chat!.id,
+            dayRecord.messageId,
+            `❌ Вы сегодня пропустили чтение ${type} азкаров`
+          );
+        } catch (err) {
+          console.log("Не удалось обновить сообщение:", err);
+        }
       }
+
+      await ctx.answerCallbackQuery("День отмечен как пропущенный");
+      return;
     }
 
-    await ctx.answerCallbackQuery("День отмечен как пропущенный");
-    return;
-  }
-  if (action === "read") {
-    if (dayRecord?.messageId) {
-      try {
-        await ctx.api.editMessageReplyMarkup(
-          ctx.chat!.id,
-          dayRecord.messageId,
-          {
-            reply_markup: { inline_keyboard: [] },
-          }
-        );
-      } catch (err) {
-        console.log("Не удалось убрать клавиатуру:", err);
+    // 📖 Читать
+    if (action === "read") {
+      if (dayRecord?.messageId) {
+        try {
+          await ctx.api.editMessageText(
+            ctx.chat!.id,
+            dayRecord.messageId,
+            `📖 Чтение ${type} азкаров`
+          );
+        } catch (err) {
+          console.log("Не удалось обновить сообщение:", err);
+        }
       }
+      await startAzkarSlider(ctx, user._id, ctx.chat!.id, prayer as any, date);
+      await ctx.answerCallbackQuery();
+      return;
     }
-    await startAzkarSlider(ctx, user._id, ctx.chat!.id, prayer as any, date);
-    await ctx.answerCallbackQuery();
-    return;
+  } catch (err) {
+    console.error("Error in handleAzkarNotifyCallback:", err);
+    throw err;
   }
-  await ctx.answerCallbackQuery("❌ Неизвестное действие");
 }
 
+/**
+ * Обработка кнопок слайдера
+ */
 export async function handleSliderCallback(ctx: MyContext): Promise<void> {
   const data = ctx.callbackQuery?.data;
   if (!data) {
@@ -261,7 +271,6 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
   }
 
   const parts = data.split(":");
-
   const action = parts.pop();
   const sliderId = parts.slice(1).join(":");
 
@@ -291,16 +300,17 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
     await ctx.answerCallbackQuery("Завершено");
     return;
   }
-
   const azkar = await Azkar.findById(state.azkarIds[state.index]);
   if (!azkar) {
     await ctx.answerCallbackQuery("❌ Ошибка загрузки");
     return;
   }
-
   const kb = buildSliderKeyboard(sliderId, state.index, total);
-  await ctx.editMessageText(formatAzkarMessage(azkar, state.index + 1, total), {
-    reply_markup: kb,
-    parse_mode: "HTML",
-  });
+  await ctx.editMessageText(
+    formatAzkarMessage(azkar, state.index + 1, total),
+    {
+      reply_markup: kb,
+      parse_mode: "HTML",
+    }
+  );
 }

@@ -1,27 +1,36 @@
 import dayjs from "dayjs";
-import { MyContext } from "../types";
+import { IPrayTime, MyContext } from "../types";
 import { StreakService } from "../services/StreakService";
 import User from "../database/models/User";
 import { CalendarService } from "../services/CalendarService";
 import { generateCalendarMarkup } from "../shared/calendarMarkup";
+import { getPrayTime } from "../shared/requests";
+import { register } from "../database/controllers/auth";
 
 export async function profileHandler(ctx: MyContext) {
   const user = await User.findOne({ telegramId: ctx.from?.id });
   if (!user) return ctx.reply("Вы не зарегистрированы");
-
+  const isRegistered: boolean = await register(ctx);
+  if (!isRegistered || !user.location?.latitude || !user.location?.longitude) {
+    await ctx.conversation.enter("startConversation");
+    return;
+  }
   const stats = await StreakService.getProfileStats(user._id);
+  const prayTime: IPrayTime = await getPrayTime(
+    user.location?.latitude.toString(),
+    user.location?.longitude.toString()
+  );
 
   await ctx.reply(
     `<b>👤 Профиль — ${user.username || "Ваш"}</b>\n\n` +
-    `🌅 Утренний намаз (UTC): ${user.timings?.FajrUTC || "-"}\n` +
-    `🌃 Вечерний намаз (UTC): ${user.timings?.MaghribUTC || "-"}\n\n` +
-    `🔥 Текущий стрик: ${stats.currentStreak} дней\n` +
-    `📈 Прочитано дней: ${stats.totalReadDays}\n` +
-    `❌ Пропущено дней: ${stats.totalSkippedDays}`,
+      `🌅 Утренний намаз (UTC): ${prayTime.timings.Fajr || "-"}\n` +
+      `🌃 Вечерний намаз (UTC): ${prayTime.timings.Maghrib || "-"}\n\n` +
+      `🔥 Текущий стрик: ${stats.currentStreak} дней\n` +
+      `📈 Прочитано дней: ${stats.totalReadDays}\n` +
+      `❌ Пропущено дней: ${stats.totalSkippedDays}`,
     { parse_mode: "HTML" }
   );
 }
-
 
 export const calendarHandler = async (ctx: MyContext) => {
   try {

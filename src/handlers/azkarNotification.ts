@@ -118,23 +118,14 @@ async function startAzkarSlider(
 
   const keyboard = buildSliderKeyboard(sliderId, 0, azkar.length);
 
-  if (azkar[0].audio) {
-    // отправляем аудио с подписью
-    await ctx.api.sendAudio(chatId, azkar[0].audio, {
-      caption: formatAzkarMessage(azkar[0], 1, azkar.length),
+  await ctx.api.sendMessage(
+    chatId,
+    formatAzkarMessage(azkar[0], 1, azkar.length),
+    {
       reply_markup: keyboard,
       parse_mode: "HTML",
-    });
-  } else {
-    await ctx.api.sendMessage(
-      chatId,
-      formatAzkarMessage(azkar[0], 1, azkar.length),
-      {
-        reply_markup: keyboard,
-        parse_mode: "HTML",
-      }
-    );
-  }
+    }
+  );
 }
 
 function buildSliderKeyboard(
@@ -195,7 +186,6 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
 
       if (dayRecord?.messageId) {
         try {
-          // редактируем исходное уведомление: меняем текст, убираем клавиатуру
           await ctx.api.editMessageText(
             ctx.chat!.id,
             dayRecord.messageId,
@@ -211,7 +201,6 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
       return;
     }
 
-    // ❌ Пропустить
     if (action === "skip") {
       await cancelAzkarNotification(user._id.toString(), prayer as any, date);
       await StreakService.markSkipped(user._id, date, dbType);
@@ -233,7 +222,6 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
       return;
     }
 
-    // 📖 Читать
     if (action === "read") {
       if (dayRecord?.messageId) {
         try {
@@ -248,7 +236,6 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
         }
       }
 
-      // запускаем слайдер, передавая chatId = приватный id (ctx.from!.id)
       await startAzkarSlider(ctx, user._id, ctx.from!.id, prayer as any, date);
       await ctx.answerCallbackQuery();
       return;
@@ -269,8 +256,8 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
   }
 
   const parts = data.split(":");
-  const action = parts.pop(); // last part: prev|next|plus|finish
-  const sliderId = parts.slice(1).join(":"); // skip 'slider' prefix
+  const action = parts.pop();
+  const sliderId = parts.slice(1).join(":");
 
   const state = sliderStates.get(sliderId);
 
@@ -297,7 +284,6 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
   } else if (action === "finish") {
     sliderStates.delete(sliderId);
     try {
-      // удаляем клавиатуру и пишем финальный текст в том же сообщении
       await ctx.editMessageText(
         "🎉 Вы прочитали сегодня азкары, поздравляем!",
         {
@@ -325,18 +311,10 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
   const messageText = formatAzkarMessage(azkar, state.index + 1, total);
 
   try {
-    if (azkar.audio) {
-      await ctx.editMessageCaption({
-        caption: messageText,
-        reply_markup: kb,
-        parse_mode: "HTML",
-      });
-    } else {
-      await ctx.editMessageText(messageText, {
-        reply_markup: kb,
-        parse_mode: "HTML",
-      });
-    }
+    await ctx.editMessageText(messageText, {
+      reply_markup: kb,
+      parse_mode: "HTML",
+    });
   } catch (error) {
     console.log("Error editing message:", error);
     await ctx.answerCallbackQuery("❌ Ошибка обновления сообщения");

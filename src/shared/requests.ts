@@ -21,7 +21,6 @@ export const getPrayTime = async (
   try {
     const { data } = await axios.get<IPrayTimeResponse>(
       `https://api.aladhan.com/v1/timings?latitude=${latitude}&longitude=${longitude}&method=2`,
-      { timeout: 5000 }
     );
 
     return {

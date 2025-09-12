@@ -35,15 +35,15 @@ bot.api.setMyCommands(commands);
 bot.use(conversations<MyContext, MyConversationContext>());
 bot.use(menuButtons);
 
+bot.use(createConversation(startConversation, { plugins: [hydrate()] }));
+bot.use(createConversation(locationConversation, { plugins: [hydrate()] }));
+
 commands.forEach((command) => {
   bot.command(command.command, async (ctx, next: NextFunction) => {
     await ctx.conversation.exitAll();
     return next();
   });
 });
-
-bot.use(createConversation(startConversation, { plugins: [hydrate()] }));
-bot.use(createConversation(locationConversation, { plugins: [hydrate()] }));
 
 commands.forEach((command) => {
   bot.command(command.command, command.action);
@@ -76,7 +76,7 @@ export const azkarQueue = new Queue("azkar", { connection });
 export const azkarQueueEvents = new QueueEvents("azkar", { connection });
 
 function jobKey(userId: string, prayer: PrayerType, date: string) {
-  return `${userId}:${prayer}:${date}`;
+  return `azkar:${userId}:${prayer}:${date}`;
 }
 
 export async function scheduleAzkarNotification(
@@ -89,7 +89,10 @@ export async function scheduleAzkarNotification(
   const type = prayer === "Fajr" ? "morning" : "evening";
 
   const existing = await Day.findOne({ userId, date, type });
-  if (existing && (existing.status === "skipped" || existing.status === "read")) {
+  if (
+    existing &&
+    (existing.status === "skipped" || existing.status === "read")
+  ) {
     console.log(`⏩ Пропуск: ${userId} уже ${existing.status} ${type} азкары`);
     return;
   }
@@ -107,7 +110,6 @@ export async function scheduleAzkarNotification(
   const delay = runAt - now;
   const jobId = jobKey(userId, prayer, date);
 
-  // Удаляем старое задание (если есть)
   const oldJob = await azkarQueue.getJob(jobId);
   if (oldJob) {
     await oldJob.remove();
@@ -121,7 +123,9 @@ export async function scheduleAzkarNotification(
   );
 
   console.log(
-    `✅ Запланировано ${prayer} для ${userId} на ${new Date(runAt).toISOString()}`
+    `✅ Запланировано ${prayer} для ${userId} на ${new Date(
+      runAt
+    ).toISOString()}`
   );
 }
 
@@ -139,7 +143,7 @@ export async function postponeAzkarNotification(
     console.log(`🗑️ Старое задание ${jobId} удалено перед откладыванием`);
   }
 
-  const delay = 60 * 60 * 1000; // 1 час
+  const delay = 60 * 60 * 1000;
   await azkarQueue.add(
     "send",
     { userId, telegramId, prayer, date },

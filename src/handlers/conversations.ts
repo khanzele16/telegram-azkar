@@ -15,9 +15,6 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.locale("ru");
 
-/**
- * Первый экран приветствия
- */
 export const startConversation = async (
   conversation: MyConversation,
   ctx: MyConversationContext
@@ -42,9 +39,6 @@ export const startConversation = async (
   }
 };
 
-/**
- * Установка геолокации пользователя и времени намаза
- */
 export const locationConversation = async (
   conversation: MyConversation,
   ctx: MyConversationContext
@@ -82,7 +76,6 @@ export const locationConversation = async (
       return;
     }
 
-    // Расчёт локального времени намаза
     const fajrLocal = dayjs
       .unix(prayTime.date.timestamp)
       .tz(prayTime.meta.timezone)
@@ -100,7 +93,6 @@ export const locationConversation = async (
       MaghribUTC: maghribLocal.utc().toISOString(),
     };
 
-    // Сохраняем в базу
     await User.findOneAndUpdate(
       { telegramId: ctx.from?.id },
       {

@@ -1,3 +1,4 @@
+// src/handlers/azkarNotification.ts
 import { Api, InlineKeyboard } from "grammy";
 import User from "../database/models/User";
 import Azkar from "../database/models/Azkar";
@@ -22,7 +23,7 @@ export async function sendAzkarNotification(
   date: string,
   chatId?: number
 ): Promise<void> {
-  const targetChatId = chatId || telegramId;
+  const targetChatId = chatId ?? telegramId;
   const user = await User.findOne({ telegramId });
 
   if (!user) return;
@@ -116,7 +117,9 @@ async function startAzkarSlider(
   });
 
   const keyboard = buildSliderKeyboard(sliderId, 0, azkar.length);
+
   if (azkar[0].audio) {
+    // отправляем аудио с подписью
     await ctx.api.sendAudio(chatId, azkar[0].audio, {
       caption: formatAzkarMessage(azkar[0], 1, azkar.length),
       reply_markup: keyboard,
@@ -172,7 +175,7 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
       return;
     }
 
-    const type = prayer === "Fajr" ? "утренних" : "вечерних";
+    const typeLabel = prayer === "Fajr" ? "утренних" : "вечерних";
     const dbType = prayerToType(prayer as "Fajr" | "Maghrib");
 
     const dayRecord = await Day.findOne({
@@ -181,6 +184,7 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
       type: dbType,
     });
 
+    // ⏰ Отложить
     if (action === "postpone") {
       await postponeAzkarNotification(
         user._id.toString(),
@@ -191,14 +195,15 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
 
       if (dayRecord?.messageId) {
         try {
+          // редактируем исходное уведомление: меняем текст, убираем клавиатуру
           await ctx.api.editMessageText(
             ctx.chat!.id,
             dayRecord.messageId,
-            `⏰ Вы отложили чтение ${type} азкаров на 1 час`,
+            `⏰ Вы отложили чтение ${typeLabel} азкаров на 1 час`,
             { reply_markup: new InlineKeyboard() }
           );
         } catch (err) {
-          console.log("Не удалось обновить сообщение:", err);
+          console.log("Не удалось обновить сообщение (postpone):", err);
         }
       }
 
@@ -206,6 +211,7 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
       return;
     }
 
+    // ❌ Пропустить
     if (action === "skip") {
       await cancelAzkarNotification(user._id.toString(), prayer as any, date);
       await StreakService.markSkipped(user._id, date, dbType);
@@ -215,11 +221,11 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
           await ctx.api.editMessageText(
             ctx.chat!.id,
             dayRecord.messageId,
-            `❌ Вы сегодня пропустили чтение ${type} азкаров`,
+            `❌ Вы сегодня пропустили чтение ${typeLabel} азкаров`,
             { reply_markup: new InlineKeyboard() }
           );
         } catch (err) {
-          console.log("Не удалось обновить сообщение:", err);
+          console.log("Не удалось обновить сообщение (skip):", err);
         }
       }
 
@@ -227,23 +233,28 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
       return;
     }
 
+    // 📖 Читать
     if (action === "read") {
       if (dayRecord?.messageId) {
         try {
           await ctx.api.editMessageText(
             ctx.chat!.id,
             dayRecord.messageId,
-            `📖 Чтение ${type} азкаров`,
+            `📖 Чтение ${typeLabel} азкаров`,
             { reply_markup: new InlineKeyboard() }
           );
         } catch (err) {
-          console.log("Не удалось обновить сообщение:", err);
+          console.log("Не удалось обновить сообщение (read):", err);
         }
       }
-      await startAzkarSlider(ctx, user._id, ctx.chat!.id, prayer as any, date);
+
+      // запускаем слайдер, передавая chatId = приватный id (ctx.from!.id)
+      await startAzkarSlider(ctx, user._id, ctx.from!.id, prayer as any, date);
       await ctx.answerCallbackQuery();
       return;
     }
+
+    await ctx.answerCallbackQuery("❌ Неизвестное действие");
   } catch (err) {
     console.error("Error in handleAzkarNotifyCallback:", err);
     throw err;
@@ -258,8 +269,8 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
   }
 
   const parts = data.split(":");
-  const action = parts.pop();
-  const sliderId = parts.slice(1).join(":");
+  const action = parts.pop(); // last part: prev|next|plus|finish
+  const sliderId = parts.slice(1).join(":"); // skip 'slider' prefix
 
   const state = sliderStates.get(sliderId);
 
@@ -267,6 +278,7 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
     await ctx.answerCallbackQuery("Слайдер устарел");
     return;
   }
+
   const total = state.azkarIds.length;
 
   if (action === "prev") {
@@ -284,24 +296,38 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
     await ctx.answerCallbackQuery("+1 записан");
   } else if (action === "finish") {
     sliderStates.delete(sliderId);
-    await ctx.editMessageText("🎉 Вы прочитали сегодня азкары, поздравляем!", {
-      reply_markup: new InlineKeyboard(),
-      parse_mode: "HTML",
-    });
+    try {
+      // удаляем клавиатуру и пишем финальный текст в том же сообщении
+      await ctx.editMessageText(
+        "🎉 Вы прочитали сегодня азкары, поздравляем!",
+        {
+          reply_markup: new InlineKeyboard(),
+          parse_mode: "HTML",
+        }
+      );
+    } catch (err) {
+      console.log(
+        "Не удалось обновить сообщение при завершении слайдера:",
+        err
+      );
+    }
     await ctx.answerCallbackQuery("Завершено");
     return;
   }
+
   const azkar = await Azkar.findById(state.azkarIds[state.index]);
   if (!azkar) {
     await ctx.answerCallbackQuery("❌ Ошибка загрузки");
     return;
   }
+
   const kb = buildSliderKeyboard(sliderId, state.index, total);
   const messageText = formatAzkarMessage(azkar, state.index + 1, total);
-  
+
   try {
     if (azkar.audio) {
-      await ctx.editMessageCaption(messageText, {
+      await ctx.editMessageCaption({
+        caption: messageText,
         reply_markup: kb,
         parse_mode: "HTML",
       });

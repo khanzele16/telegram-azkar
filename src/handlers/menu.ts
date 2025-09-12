@@ -1,5 +1,6 @@
 import { Menu } from "@grammyjs/menu";
 import { MyContext } from "../types";
+import { location } from './commands'
 import { profileHandler } from "./index";
 import { statsHandler } from "./statsHandler";
 
@@ -13,10 +14,10 @@ export const menuButtons = new Menu<MyContext>("menu")
   .text("📍 Геолокация", async (ctx) => {
     await ctx.answerCallbackQuery("📍 Геолокация");
     ctx.menu.close();
-    await ctx.conversation.enter("locationConversation");
+    await location(ctx);
   })
   .text("🗓 Статистика", async (ctx) => {
-    await ctx.answerCallbackQuery("🗓 Статистика");
+    await ctx.answerCallbackQuery("🗓  Статистика");
     ctx.menu.close();
     await statsHandler(ctx);
   })

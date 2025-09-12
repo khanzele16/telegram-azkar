@@ -1,4 +1,3 @@
-// src/handlers/azkarNotification.ts
 import { Api, InlineKeyboard } from "grammy";
 import User from "../database/models/User";
 import Azkar from "../database/models/Azkar";
@@ -175,7 +174,6 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
       type: dbType,
     });
 
-    // ⏰ Отложить
     if (action === "postpone") {
       await postponeAzkarNotification(
         user._id.toString(),
@@ -190,13 +188,11 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
             ctx.chat!.id,
             dayRecord.messageId,
             `⏰ Вы отложили чтение ${typeLabel} азкаров на 1 час`,
-            { reply_markup: new InlineKeyboard() }
           );
         } catch (err) {
           console.log("Не удалось обновить сообщение (postpone):", err);
         }
       }
-
       await ctx.answerCallbackQuery("⏰ Отложено на 1 час");
       return;
     }
@@ -211,17 +207,14 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
             ctx.chat!.id,
             dayRecord.messageId,
             `❌ Вы сегодня пропустили чтение ${typeLabel} азкаров`,
-            { reply_markup: new InlineKeyboard() }
           );
         } catch (err) {
           console.log("Не удалось обновить сообщение (skip):", err);
         }
       }
-
       await ctx.answerCallbackQuery("День отмечен как пропущенный");
       return;
     }
-
     if (action === "read") {
       if (dayRecord?.messageId) {
         try {
@@ -229,7 +222,6 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
             ctx.chat!.id,
             dayRecord.messageId,
             `📖 Чтение ${typeLabel} азкаров`,
-            { reply_markup: new InlineKeyboard() }
           );
         } catch (err) {
           console.log("Не удалось обновить сообщение (read):", err);

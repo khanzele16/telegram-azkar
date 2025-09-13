@@ -12,6 +12,7 @@ const Day = new Schema<IDay>(
       default: "pending",
     },
     azkarIds: [{ type: Schema.Types.ObjectId, ref: "Azkar" }], // какие азкары прочитал
+    messageId: Number, // ID сообщения с уведомлением
     startedAt: Date,
     finishedAt: Date,
     postponedUntil: Date,

@@ -92,7 +92,12 @@ async function startAzkarSlider(
   const alreadyReadIds = dayRecord?.azkarIds || [];
 
   const azkar = await Azkar.aggregate([
-    { $match: { category: type, _id: { $nin: alreadyReadIds } } },
+    {
+      $match: {
+        $or: [{ category: type }, { category: "other1" }],
+        _id: { $nin: alreadyReadIds },
+      },
+    },
   ]);
 
   if (azkar.length === 0) {
@@ -132,7 +137,7 @@ function buildSliderKeyboard(
     .text(`${index + 1}/${total}`, `slider:${sliderId}:info`)
     .text("⏩", `slider:${sliderId}:next`)
     .row()
-    .text("+1", `slider:${sliderId}:plus`)
+    .text("Прочитал", `slider:${sliderId}:plus`)
     .text("✅ Завершить", `slider:${sliderId}:finish`);
 }
 
@@ -286,20 +291,14 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
   } else if (action === "finish") {
     sliderStates.delete(sliderId);
     try {
-      await ctx.editMessageText(
-        "🎉 Вы прочитали сегодня азкары, поздравляем!",
-        {
-          reply_markup: new InlineKeyboard(),
-          parse_mode: "HTML",
-        }
-      );
+      await ctx.editMessageText("🎉 Вы прочитали сегодня азкары, поздравляем!");
     } catch (err) {
       console.log(
         "Не удалось обновить сообщение при завершении слайдера:",
         err
       );
     }
-    await ctx.answerCallbackQuery("Завершено");
+    await ctx.answerCallbackQuery("🎉 Завершено");
     return;
   }
 

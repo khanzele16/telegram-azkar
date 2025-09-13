@@ -40,9 +40,6 @@ export async function updatePrayerTimesAndSchedule(): Promise<void> {
             date,
             runAtISO
           );
-          console.log(
-            `✅ Запланировано ${prayer} для ${telegramId} на ${runAtISO}`
-          );
         } catch (err) {
           console.error(
             `❌ Ошибка при планировании ${prayer} для ${telegramId}:`,

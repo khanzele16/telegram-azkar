@@ -16,9 +16,8 @@ export class StreakService {
       { userId, date: localDate, type },
       {
         $setOnInsert: { startedAt: new Date() },
+        $set: { status: "read", finishedAt: new Date() },
         $addToSet: { azkarIds: azkarId },
-        status: "read",
-        finishedAt: new Date(),
       },
       { upsert: true }
     );
@@ -34,9 +33,12 @@ export class StreakService {
     date: string,
     type: "morning" | "evening"
   ) {
-    await Day.findOneAndUpdate(
+    await Day.updateOne(
       { userId, date, type },
-      { status: "skipped", finishedAt: new Date() },
+      {
+        $setOnInsert: { startedAt: new Date() },
+        $set: { status: "skipped", finishedAt: new Date() },
+      },
       { upsert: true }
     );
 
@@ -52,9 +54,12 @@ export class StreakService {
     type: "morning" | "evening",
     until: Date
   ) {
-    await Day.findOneAndUpdate(
+    await Day.updateOne(
       { userId, date, type },
-      { status: "postponed", postponedUntil: until },
+      {
+        $setOnInsert: { startedAt: new Date() },
+        $set: { status: "postponed", postponedUntil: until },
+      },
       { upsert: true }
     );
   }

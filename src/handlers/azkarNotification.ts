@@ -28,10 +28,12 @@ export async function sendAzkarNotification(
   if (!user) return;
 
   try {
+    const type = prayerToType(prayer);
+
     const existingDay = await Day.findOne({
       userId: user._id,
       date,
-      type: prayerToType(prayer),
+      type,
     });
 
     if (existingDay && ["read", "skipped"].includes(existingDay.status)) {
@@ -51,21 +53,14 @@ export async function sendAzkarNotification(
       { reply_markup: keyboard }
     );
 
-    if (!existingDay) {
-      await Day.create({
-        userId: user._id,
-        date,
-        type: prayerToType(prayer),
-        status: "pending",
-        startedAt: new Date(),
-        messageId: ctx_message.message_id,
-      });
-    } else {
-      await Day.updateOne(
-        { _id: existingDay._id },
-        { messageId: ctx_message.message_id }
-      );
-    }
+    await Day.updateOne(
+      { userId: user._id, date, type },
+      {
+        $set: { messageId: ctx_message.message_id },
+        $setOnInsert: { status: "pending", startedAt: new Date() },
+      },
+      { upsert: true }
+    );
   } catch (err) {
     console.log("sendAzkarNotification error:", err);
     throw err;
@@ -173,6 +168,7 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
       date,
       type: dbType,
     });
+
     if (action === "postpone") {
       await postponeAzkarNotification(
         user._id.toString(),
@@ -181,12 +177,23 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
         date
       );
 
+      await Day.updateOne(
+        { userId: user._id, date, type: dbType },
+        {
+          $set: {
+            status: "postponed",
+            postponedUntil: new Date(Date.now() + 3600_000),
+          },
+        },
+        { upsert: true }
+      );
+
       if (dayRecord?.messageId) {
         try {
           await ctx.api.editMessageText(
             ctx.chat!.id,
             dayRecord.messageId,
-            `⏰ Вы отложили чтение ${typeLabel} азкаров на 1 час`,
+            `⏰ Вы отложили чтение ${typeLabel} азкаров на 1 час`
           );
         } catch (err) {
           console.log("Не удалось обновить сообщение (postpone):", err);
@@ -199,13 +206,12 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
     if (action === "skip") {
       await cancelAzkarNotification(user._id.toString(), prayer as any, date);
       await StreakService.markSkipped(user._id, date, dbType);
-
       if (dayRecord?.messageId) {
         try {
           await ctx.api.editMessageText(
             ctx.chat!.id,
             dayRecord.messageId,
-            `❌ Вы сегодня пропустили чтение ${typeLabel} азкаров`,
+            `❌ Вы сегодня пропустили чтение ${typeLabel} азкаров`
           );
         } catch (err) {
           console.log("Не удалось обновить сообщение (skip):", err);
@@ -214,25 +220,29 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
       await ctx.answerCallbackQuery("День отмечен как пропущенный");
       return;
     }
+
     if (action === "read") {
-      console.log('И в read я тоже был')
+      await Day.updateOne(
+        { userId: user._id, date, type: dbType },
+        { $set: { status: "pending", startedAt: new Date() } },
+        { upsert: true }
+      );
+
       if (dayRecord?.messageId) {
         try {
           await ctx.api.editMessageText(
             ctx.chat!.id,
             dayRecord.messageId,
-            `📖 Чтение ${typeLabel} азкаров`,
+            `📖 Чтение ${typeLabel} азкаров`
           );
         } catch (err) {
           console.log("Не удалось обновить сообщение (read):", err);
         }
       }
-
       await startAzkarSlider(ctx, user._id, ctx.from!.id, prayer as any, date);
       await ctx.answerCallbackQuery();
       return;
     }
-
     await ctx.answerCallbackQuery("❌ Неизвестное действие");
   } catch (err) {
     console.error("Error in handleAzkarNotifyCallback:", err);

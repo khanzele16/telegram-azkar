@@ -4,8 +4,6 @@ import { type MyContext } from "../types";
 import { menuButtons } from "./menu";
 import { profileHandler } from "./index";
 import { statsHandler } from "./statsHandler";
-import { StreakService } from "../services/StreakService";
-import dayjs from "dayjs";
 
 export const start = async (ctx: MyContext) => {
   try {

@@ -173,7 +173,7 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
       date,
       type: dbType,
     });
-    console.log('Я был здесь')
+    console.log(dayRecord)
     if (action === "postpone") {
       await postponeAzkarNotification(
         user._id.toString(),
@@ -216,7 +216,6 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
       return;
     }
     if (action === "read") {
-      console.log('И в read я тоже был')
       if (dayRecord?.messageId) {
         try {
           await ctx.api.editMessageText(

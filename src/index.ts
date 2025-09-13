@@ -33,10 +33,11 @@ mongoose
 bot.api.setMyCommands(commands);
 
 bot.use(conversations<MyContext, MyConversationContext>());
-bot.use(menuButtons);
 
 bot.use(createConversation(startConversation, { plugins: [hydrate()] }));
 bot.use(createConversation(locationConversation, { plugins: [hydrate()] }));
+
+bot.use(menuButtons);
 
 commands.forEach((command) => {
   bot.command(command.command, async (ctx, next: NextFunction) => {
@@ -51,6 +52,12 @@ commands.forEach((command) => {
 });
 
 bot.on("callback_query", handleCallbackQuery);
+bot.callbackQuery("menu", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await ctx.reply("📌 Главное меню\n\nВыберите действие:", {
+    reply_markup: menuButtons,
+  });
+});
 bot.on("message", messageHandler);
 
 bot.catch((err) => {

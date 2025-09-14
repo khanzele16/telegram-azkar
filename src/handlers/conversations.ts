@@ -132,7 +132,10 @@ export const locationConversation = async (
           text: "📌 Главное меню",
         });
         await ctx.api.deleteMessage(ctx.chat!.id, ctx_message.message_id);
-        conversation.menu("menu");
+        await ctx.reply("📌 Главное меню\n\nВыберите действие:", {
+          reply_markup: conversation.menu("menu"),
+          parse_mode: "HTML",
+        });
       }
     }
   } catch (err) {

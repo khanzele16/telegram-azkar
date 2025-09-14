@@ -10,6 +10,7 @@ import {
 import { getPrayTime } from "../shared/requests";
 import { IPrayTime, MyConversation, MyConversationContext } from "../types";
 import { updatePrayerTimesAndSchedule } from "../cron/prayerTimesCron";
+import { menu } from "./commands";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -110,7 +111,7 @@ export const locationConversation = async (
 
     await updatePrayerTimesAndSchedule();
 
-    await ctx.reply(
+    const ctx_message = await ctx.reply(
       `<b>🌞 Ваше местное время намаза на ${dayjs(
         prayTime.date.timestamp * 1000
       ).format("D MMMM YYYY")}</b>\n` +
@@ -119,6 +120,21 @@ export const locationConversation = async (
         "✅ Ваш аккаунт настроен, уведомления будут приходить автоматически.",
       { parse_mode: "HTML", reply_markup: toMenuKeyboard }
     );
+
+    const { callbackQuery, message } = await conversation.waitFor([
+      "callback_query",
+      "message",
+    ]);
+
+    if (callbackQuery) {
+      if (callbackQuery.data === "menu") {
+        await ctx.api.answerCallbackQuery(callbackQuery.id, {
+          text: "📌 Главное меню",
+        });
+        await ctx.api.deleteMessage(ctx.chat!.id, ctx_message.message_id);
+        conversation.menu("menu");
+      }
+    }
   } catch (err) {
     console.error("Ошибка в locationConversation:", err);
     await ctx.reply(

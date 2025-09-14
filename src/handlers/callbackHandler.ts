@@ -12,9 +12,7 @@ export async function handleCallbackQuery(ctx: MyContext): Promise<void> {
       await ctx.answerCallbackQuery("❌ Некорректные данные");
       return;
     }
-    if (data === "menu") {
-      await ctx.answerCallbackQuery("🏠 Главное меню");
-    }
+    
     if (data.startsWith("calendar:")) {
       const [, y, m] = data.split(":");
       const year = parseInt(y, 10);

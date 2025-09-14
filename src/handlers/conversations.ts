@@ -11,6 +11,7 @@ import { getPrayTime } from "../shared/requests";
 import { IPrayTime, MyConversation, MyConversationContext } from "../types";
 import { updatePrayerTimesAndSchedule } from "../cron/prayerTimesCron";
 import { menu } from "./commands";
+import { menuButtons } from "./menu";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -133,10 +134,16 @@ export const locationConversation = async (
         });
         await ctx.api.deleteMessage(ctx.chat!.id, ctx_message.message_id);
         await ctx.reply("📌 Главное меню\n\nВыберите действие:", {
-          reply_markup: conversation.menu("menu"),
+          reply_markup: menuButtons,
           parse_mode: "HTML",
         });
+        return;
       }
+    }
+
+    if (message) {
+      await ctx.reply("Пожалуйста, используйте кнопку '🏠 К главному меню' для перехода в меню.");
+      return;
     }
   } catch (err) {
     console.error("Ошибка в locationConversation:", err);

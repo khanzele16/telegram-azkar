@@ -3,7 +3,7 @@ import { register } from "../database/controllers/auth";
 import { type MyContext } from "../types";
 import { menuButtons } from "./menu";
 import { profileHandler } from "./index";
-import { statsHandler } from "./statsHandler";
+import { statsHandler } from "./index";
 
 export const start = async (ctx: MyContext) => {
   try {

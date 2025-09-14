@@ -1,5 +1,5 @@
 import { MyContext } from "../types";
-import { handleCalendarNavigation } from "./statsHandler";
+import { handleCalendarNavigation } from "./index";
 import {
   handleAzkarNotifyCallback,
   handleSliderCallback,

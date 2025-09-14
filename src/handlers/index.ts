@@ -1,35 +1,178 @@
 import dayjs from "dayjs";
-import { IPrayTime, MyContext } from "../types";
-import { StreakService } from "../services/StreakService";
+import utc from "dayjs/plugin/utc";
 import User from "../database/models/User";
+import { IPrayTime, MyContext, MyConversationContext } from "../types";
+import { StreakService } from "../services/StreakService";
 import { CalendarService } from "../services/CalendarService";
 import { generateCalendarMarkup } from "../shared/calendarMarkup";
 import { getPrayTime } from "../shared/requests";
 import { register } from "../database/controllers/auth";
+import { start } from "./commands";
 
-export async function profileHandler(ctx: MyContext) {
-  const user = await User.findOne({ telegramId: ctx.from?.id });
-  if (!user) return ctx.reply("Вы не зарегистрированы");
-  const isRegistered: boolean = await register(ctx);
-  if (!isRegistered || !user.location?.latitude || !user.location?.longitude) {
-    await ctx.conversation.enter("startConversation");
-    return;
+dayjs.extend(utc);
+
+export async function statsHandler(
+  ctx: MyContext
+): Promise<void> {
+  try {
+    if (!ctx.from?.id) {
+      await ctx.reply("❌ Ошибка: не удалось определить пользователя");
+      return;
+    }
+
+    const user = await User.findOne({ telegramId: ctx.from.id });
+    if (!user) {
+      await ctx.reply(
+        "❌ Пользователь не найден. Используйте /start для регистрации."
+      );
+      return;
+    }
+
+    const stats = await StreakService.getProfileStats(user._id);
+    const statsMessage = formatProfileStats(stats);
+
+    const now = dayjs.utc();
+    const currentYear = now.year();
+    const currentMonth = now.month() + 1;
+    const calendar = await CalendarService.getMonthCalendar(
+      user._id,
+      currentYear,
+      currentMonth
+    );
+    const keyboard = generateCalendarMarkup(
+      calendar,
+      currentYear,
+      currentMonth
+    );
+
+    await ctx.reply(statsMessage, {
+      reply_markup: keyboard,
+      parse_mode: "HTML",
+    });
+  } catch (error) {
+    console.error("❌ Ошибка в statsHandler:", error);
+    await ctx.reply("❌ Произошла ошибка при загрузке статистики");
   }
-  const stats = await StreakService.getProfileStats(user._id);
-  const prayTime: IPrayTime | null = await getPrayTime(
-    user.location?.latitude.toString(),
-    user.location?.longitude.toString()
-  );
+}
 
-  await ctx.reply(
-    `<b>👤 Профиль — ${user.username || "Ваш"}</b>\n\n` +
-      `🌅 Утренний намаз (UTC): ${prayTime?.timings.Fajr || "-"}\n` +
-      `🌃 Вечерний намаз (UTC): ${prayTime?.timings.Maghrib || "-"}\n\n` +
-      `🔥 Текущий стрик: ${stats.currentStreak} дней\n` +
-      `📈 Прочитано дней: ${stats.totalReadDays}\n` +
-      `❌ Пропущено дней: ${stats.totalSkippedDays}`,
-    { parse_mode: "HTML" }
-  );
+export async function handleCalendarNavigation(
+  ctx: MyContext,
+  year: number,
+  month: number
+): Promise<void> {
+  try {
+    if (!ctx.from?.id) {
+      await ctx.answerCallbackQuery(
+        "❌ Ошибка: не удалось определить пользователя"
+      );
+      return;
+    }
+
+    const user = await User.findOne({ telegramId: ctx.from.id });
+    if (!user) {
+      await ctx.answerCallbackQuery("❌ Пользователь не найден");
+      return;
+    }
+
+    const calendar = await CalendarService.getMonthCalendar(
+      user._id,
+      year,
+      month
+    );
+    const keyboard = generateCalendarMarkup(calendar, year, month);
+
+    await ctx.editMessageText("📊 <b>Статистика</b>", {
+      reply_markup: keyboard,
+      parse_mode: "HTML",
+    });
+
+    await ctx.answerCallbackQuery(`📅 ${getMonthName(month)} ${year}`);
+  } catch (error) {
+    console.error("❌ Ошибка в handleCalendarNavigation:", error);
+    await ctx.answerCallbackQuery("❌ Ошибка при загрузке календаря");
+  }
+}
+
+function formatProfileStats(stats: {
+  currentStreak: number;
+  lastReadAt?: Date;
+  totalReadDays: number;
+  totalSkippedDays: number;
+}): string {
+  let message = "<b>📊 Статистика</b>\n\n";
+
+  message += `🔥 <b>Текущий стрик:</b> ${stats.currentStreak} дней\n\n`;
+
+  if (stats.lastReadAt) {
+    const lastRead = dayjs.utc(stats.lastReadAt).format("DD.MM.YYYY HH:mm");
+    message += `📅 <b>Последнее чтение:</b> ${lastRead}\n\n`;
+  } else {
+    message += `📅 <b>Последнее чтение:</b> Никогда\n\n`;
+  }
+  message += `✅ Прочитано дней: ${stats.totalReadDays}\n`;
+  message += `❌ Пропущено дней: ${stats.totalSkippedDays}\n`;
+
+  return message;
+}
+
+function getMonthName(month: number): string {
+  const months = [
+    "Январь",
+    "Февраль",
+    "Март",
+    "Апрель",
+    "Май",
+    "Июнь",
+    "Июль",
+    "Август",
+    "Сентябрь",
+    "Октябрь",
+    "Ноябрь",
+    "Декабрь",
+  ];
+  return months[month - 1];
+}
+
+export async function profileHandler(
+  ctx: MyContext
+): Promise<void> {
+  try {
+    if (!ctx.from?.id) {
+      await ctx.reply("❌ Ошибка: не удалось определить пользователя");
+      return;
+    }
+
+    const user = await User.findOne({ telegramId: ctx.from.id });
+    if (!user) {
+      await ctx.reply("❌ Вы не зарегистрированы. Используйте /start для регистрации.");
+      return;
+    }
+
+    const isRegistered: boolean = await register(ctx);
+    if (!isRegistered || !user.location?.latitude || !user.location?.longitude) {
+      await start(ctx);
+      return;
+    }
+
+    const stats = await StreakService.getProfileStats(user._id);
+    const prayTime: IPrayTime | null = await getPrayTime(
+      user.location.latitude.toString(),
+      user.location.longitude.toString()
+    );
+
+    await ctx.reply(
+      `<b>👤 Профиль — ${user.username || "Ваш"}</b>\n\n` +
+        `🌅 Утренний намаз (UTC): ${prayTime?.timings.Fajr || "-"}\n` +
+        `🌃 Вечерний намаз (UTC): ${prayTime?.timings.Maghrib || "-"}\n\n` +
+        `🔥 Текущий стрик: ${stats.currentStreak} дней\n` +
+        `📈 Прочитано дней: ${stats.totalReadDays}\n` +
+        `❌ Пропущено дней: ${stats.totalSkippedDays}`,
+      { parse_mode: "HTML" }
+    );
+  } catch (error) {
+    console.error("❌ Ошибка в profileHandler:", error);
+    await ctx.reply("❌ Произошла ошибка при загрузке профиля");
+  }
 }
 
 export const calendarHandler = async (ctx: MyContext) => {

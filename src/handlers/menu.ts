@@ -1,8 +1,8 @@
 import { Menu } from "@grammyjs/menu";
 import { MyContext } from "../types";
-import { location } from './commands'
+import { location } from "./commands";
 import { profileHandler } from "./index";
-import { statsHandler } from "./statsHandler";
+import { statsHandler } from "./index";
 
 export const menuButtons = new Menu<MyContext>("menu")
   .text("👤 Мой профиль", async (ctx) => {
@@ -30,3 +30,4 @@ export const menuButtons = new Menu<MyContext>("menu")
       { parse_mode: "HTML" }
     );
   });
+

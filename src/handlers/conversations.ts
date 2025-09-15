@@ -112,46 +112,16 @@ export const locationConversation = async (
 
     await updatePrayerTimesAndSchedule();
 
-    const ctx_message = await ctx.reply(
+    await ctx.reply(
       `<b>🌞 Ваше местное время намаза на ${dayjs(
         prayTime.date.timestamp * 1000
       ).format("D MMMM YYYY")}</b>\n` +
         `🌅 Фаджр — ${prayTime.timings.Fajr}\n` +
         `🌃 Магриб — ${prayTime.timings.Maghrib}\n\n` +
-        "✅ Ваш аккаунт настроен, уведомления будут приходить автоматически.",
-      { parse_mode: "HTML", reply_markup: toMenuKeyboard }
+        "✅ Ваш аккаунт настроен, уведомления будут приходить автоматически.\n" +
+        "🏠 Можете перейти в <b>главное меню с помощью /menu.</b>",
+      { parse_mode: "HTML" }
     );
-
-    const { callbackQuery, message } = await conversation.waitFor([
-      "callback_query",
-      "message",
-    ]);
-
-    if (callbackQuery) {
-      if (callbackQuery.data === "menu") {
-        await ctx.api.answerCallbackQuery(callbackQuery.id, {
-          text: "📌 Главное меню",
-        });
-        if (ctx_message.from?.id) {
-          await ctx.api.deleteMessage(
-            ctx_message.from.id,
-            ctx_message.message_id
-          );
-        }
-        await ctx.reply("📌 Главное меню\n\nВыберите действие:", {
-          reply_markup: menuButtons,
-          parse_mode: "HTML",
-        });
-        return;
-      }
-    } else if (message) {
-      if (ctx_message.from?.id) {
-        await ctx.api.editMessageReplyMarkup(
-          ctx_message.from.id,
-          ctx_message.message_id
-        );
-      }
-    }
   } catch (err) {
     console.error("Ошибка в locationConversation:", err);
     await ctx.reply(

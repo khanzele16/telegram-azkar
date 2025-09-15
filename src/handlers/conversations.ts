@@ -132,18 +132,25 @@ export const locationConversation = async (
         await ctx.api.answerCallbackQuery(callbackQuery.id, {
           text: "📌 Главное меню",
         });
-        await ctx.api.deleteMessage(ctx.chat!.id, ctx_message.message_id);
+        if (ctx_message.from?.id) {
+          await ctx.api.deleteMessage(
+            ctx_message.from.id,
+            ctx_message.message_id
+          );
+        }
         await ctx.reply("📌 Главное меню\n\nВыберите действие:", {
           reply_markup: menuButtons,
           parse_mode: "HTML",
         });
         return;
       }
-    }
-
-    if (message) {
-      await ctx.reply("Пожалуйста, используйте кнопку '🏠 К главному меню' для перехода в меню.");
-      return;
+    } else if (message) {
+      if (ctx_message.from?.id) {
+        await ctx.api.editMessageReplyMarkup(
+          ctx_message.from.id,
+          ctx_message.message_id
+        );
+      }
     }
   } catch (err) {
     console.error("Ошибка в locationConversation:", err);

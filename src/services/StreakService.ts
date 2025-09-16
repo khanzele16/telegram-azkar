@@ -70,29 +70,31 @@ export class StreakService {
   static async getProfileStats(userId: Types.ObjectId) {
     const user = await User.findById(userId);
 
-    const morningRead = await Day.countDocuments({
-      userId,
-      type: "morning",
-      status: "read",
-    });
+    const statsAgg = await Day.aggregate([
+      { $match: { userId } },
+      {
+        $group: {
+          _id: { type: "$type", status: "$status" },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
 
-    const eveningRead = await Day.countDocuments({
-      userId,
-      type: "evening",
-      status: "read",
-    });
+    let morningRead = 0,
+      eveningRead = 0,
+      morningSkipped = 0,
+      eveningSkipped = 0;
 
-    const morningSkipped = await Day.countDocuments({
-      userId,
-      type: "morning",
-      status: "skipped",
-    });
-
-    const eveningSkipped = await Day.countDocuments({
-      userId,
-      type: "evening",
-      status: "skipped",
-    });
+    for (const s of statsAgg) {
+      if (s._id.type === "morning" && s._id.status === "read")
+        morningRead = s.count;
+      if (s._id.type === "evening" && s._id.status === "read")
+        eveningRead = s.count;
+      if (s._id.type === "morning" && s._id.status === "skipped")
+        morningSkipped = s.count;
+      if (s._id.type === "evening" && s._id.status === "skipped")
+        eveningSkipped = s.count;
+    }
 
     return {
       streak: user?.currentStreak.value || 0,

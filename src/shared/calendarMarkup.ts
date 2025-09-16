@@ -60,7 +60,7 @@ export const generateCalendarMarkup = (
 
     const emoji = getDayEmoji(item?.morningStatus, item?.eveningStatus);
 
-    kb.text(`${day.toString().padStart(2, "0")} ${emoji}`, "empty");
+    kb.text(`${day.toString().padStart(2, "0")}${emoji}`, "empty");
     col++;
 
     if (col === 7) {

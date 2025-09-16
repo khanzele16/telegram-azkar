@@ -11,9 +11,7 @@ import { start } from "./commands";
 
 dayjs.extend(utc);
 
-export async function statsHandler(
-  ctx: MyContext
-): Promise<void> {
+export async function statsHandler(ctx: MyContext): Promise<void> {
   try {
     if (!ctx.from?.id) {
       await ctx.reply("❌ Ошибка: не удалось определить пользователя");
@@ -93,26 +91,18 @@ export async function handleCalendarNavigation(
   }
 }
 
-function formatProfileStats(stats: {
-  currentStreak: number;
-  lastReadAt?: Date;
-  totalReadDays: number;
-  totalSkippedDays: number;
-}): string {
-  let message = "<b>📊 Статистика</b>\n\n";
-
-  message += `🔥 <b>Текущий стрик:</b> ${stats.currentStreak} дней\n\n`;
-
-  if (stats.lastReadAt) {
-    const lastRead = dayjs.utc(stats.lastReadAt).format("DD.MM.YYYY HH:mm");
-    message += `📅 <b>Последнее чтение:</b> ${lastRead}\n\n`;
-  } else {
-    message += `📅 <b>Последнее чтение:</b> Никогда\n\n`;
-  }
-  message += `✅ Прочитано дней: ${stats.totalReadDays}\n`;
-  message += `❌ Пропущено дней: ${stats.totalSkippedDays}\n`;
-
-  return message;
+function formatProfileStats(
+  stats: Awaited<ReturnType<typeof StreakService.getProfileStats>>
+): string {
+  return `📊 <b>Ваша статистика:</b>\n
+🌅 Утренние: <b>${stats.morningRead}</b> дней (пропущено: ${
+    stats.morningSkipped
+  })
+🌇 Вечерние: <b>${stats.eveningRead}</b> дней (пропущено: ${
+    stats.eveningSkipped
+  })
+🔥 Стрик: <b>${stats.streak}</b> дней
+${stats.lastReadAt ? "📖 Последнее чтение: " + stats.lastReadAt : ""}`;
 }
 
 function getMonthName(month: number): string {
@@ -133,9 +123,7 @@ function getMonthName(month: number): string {
   return months[month - 1];
 }
 
-export async function profileHandler(
-  ctx: MyContext
-): Promise<void> {
+export async function profileHandler(ctx: MyContext): Promise<void> {
   try {
     if (!ctx.from?.id) {
       await ctx.reply("❌ Ошибка: не удалось определить пользователя");
@@ -144,12 +132,18 @@ export async function profileHandler(
 
     const user = await User.findOne({ telegramId: ctx.from.id });
     if (!user) {
-      await ctx.reply("❌ Вы не зарегистрированы. Используйте /start для регистрации.");
+      await ctx.reply(
+        "❌ Вы не зарегистрированы. Используйте /start для регистрации."
+      );
       return;
     }
 
     const isRegistered: boolean = await register(ctx);
-    if (!isRegistered || !user.location?.latitude || !user.location?.longitude) {
+    if (
+      !isRegistered ||
+      !user.location?.latitude ||
+      !user.location?.longitude
+    ) {
       await start(ctx);
       return;
     }
@@ -161,12 +155,16 @@ export async function profileHandler(
     );
 
     await ctx.reply(
-      `<b>👤 Профиль — ${user.username || "Ваш"}</b>\n\n` +
-        `🌅 Утренний намаз (UTC): ${prayTime?.timings.Fajr || "-"}\n` +
-        `🌃 Вечерний намаз (UTC): ${prayTime?.timings.Maghrib || "-"}\n\n` +
-        `🔥 Текущий стрик: ${stats.currentStreak} дней\n` +
-        `📈 Прочитано дней: ${stats.totalReadDays}\n` +
-        `❌ Пропущено дней: ${stats.totalSkippedDays}`,
+      `<b>👤 Профиль — ${user.username || "Ваш"}</b>\n\n🌅 Утренний намаз: ${
+        prayTime?.timings.Fajr || "-"
+      }\n🌃 Вечерний намаз: ${
+        prayTime?.timings.Maghrib || "-"
+      }\n\n🌅 Утренние: <b>${stats.morningRead}</b> дней (пропущено: ${
+        stats.morningSkipped
+      })
+🌇 Вечерние: <b>${stats.eveningRead}</b> дней (пропущено: ${
+        stats.eveningSkipped
+      })`,
       { parse_mode: "HTML" }
     );
   } catch (error) {

@@ -7,8 +7,7 @@ export class StreakService {
   static async markRead(
     userId: Types.ObjectId,
     utcDateString: string,
-    type: "morning" | "evening",
-    azkarId: Types.ObjectId
+    type: "morning" | "evening"
   ) {
     const localDate = getLocalDateFromUTC(utcDateString);
 
@@ -17,14 +16,18 @@ export class StreakService {
       {
         $setOnInsert: { startedAt: new Date() },
         $set: { status: "read", finishedAt: new Date() },
-        $addToSet: { azkarIds: azkarId },
       },
       { upsert: true }
     );
 
     await User.updateOne(
       { _id: userId },
-      { $set: { lastReadAt: new Date(), lastReadDate: localDate } }
+      {
+        $set: {
+          lastReadAt: localDate,
+          lastReadDate: localDate,
+        },
+      }
     );
   }
 
@@ -66,17 +69,40 @@ export class StreakService {
 
   static async getProfileStats(userId: Types.ObjectId) {
     const user = await User.findById(userId);
-    const totalRead = await Day.countDocuments({ userId, status: "read" });
-    const totalSkipped = await Day.countDocuments({
+
+    const morningRead = await Day.countDocuments({
       userId,
+      type: "morning",
+      status: "read",
+    });
+
+    const eveningRead = await Day.countDocuments({
+      userId,
+      type: "evening",
+      status: "read",
+    });
+
+    const morningSkipped = await Day.countDocuments({
+      userId,
+      type: "morning",
+      status: "skipped",
+    });
+
+    const eveningSkipped = await Day.countDocuments({
+      userId,
+      type: "evening",
       status: "skipped",
     });
 
     return {
-      currentStreak: user?.currentStreak.value || 0,
-      lastReadAt: user?.lastReadAt,
-      totalReadDays: totalRead,
-      totalSkippedDays: totalSkipped,
+      streak: user?.currentStreak.value || 0,
+      lastReadAt: user?.lastReadAt
+        ? getLocalDateFromUTC(user.lastReadAt.toISOString())
+        : null,
+      morningRead,
+      eveningRead,
+      morningSkipped,
+      eveningSkipped,
     };
   }
 }

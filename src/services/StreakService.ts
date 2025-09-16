@@ -1,6 +1,7 @@
 import Day from "../database/models/Day";
 import User from "../database/models/User";
 import { Types } from "mongoose";
+import dayjs from "dayjs";
 import { getLocalDateFromUTC } from "../shared";
 
 export class StreakService {
@@ -20,12 +21,26 @@ export class StreakService {
       { upsert: true }
     );
 
+    const user = await User.findById(userId);
+    if (!user) return;
+
+    let newStreak = 1;
+    if (user.lastReadAt) {
+      const last = dayjs(user.lastReadAt);
+      const today = dayjs();
+      const diffDays = today.diff(last, "day");
+      if (diffDays === 1) {
+        newStreak = (user.currentStreak?.value || 0) + 1;
+      }
+    }
+
     await User.updateOne(
       { _id: userId },
       {
         $set: {
-          lastReadAt: localDate,
-          lastReadDate: localDate,
+          lastReadAt: new Date(),
+          "currentStreak.value": newStreak,
+          "currentStreak.lastUpdated": new Date(),
         },
       }
     );
@@ -96,11 +111,13 @@ export class StreakService {
         eveningSkipped = s.count;
     }
 
+    const lastReadAtFormatted = user?.lastReadAt
+      ? dayjs(user.lastReadAt).format("DD.MM.YYYY HH:mm")
+      : null;
+
     return {
       streak: user?.currentStreak.value || 0,
-      lastReadAt: user?.lastReadAt
-        ? getLocalDateFromUTC(user.lastReadAt.toISOString())
-        : null,
+      lastReadAt: lastReadAtFormatted,
       morningRead,
       eveningRead,
       morningSkipped,

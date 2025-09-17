@@ -34,17 +34,17 @@ bot.api.setMyCommands(commands);
 
 bot.use(conversations<MyContext, MyConversationContext>());
 
-bot.use(createConversation(startConversation, { plugins: [hydrate()] }));
-bot.use(createConversation(locationConversation, { plugins: [hydrate()] }));
-
-bot.use(menuButtons);
-
 commands.forEach((command) => {
   bot.command(command.command, async (ctx, next: NextFunction) => {
     await ctx.conversation.exitAll();
     return next();
   });
 });
+
+bot.use(createConversation(startConversation, { plugins: [hydrate()] }));
+bot.use(createConversation(locationConversation, { plugins: [hydrate()] }));
+
+bot.use(menuButtons);
 
 commands.forEach((command) => {
   bot.command(command.command, command.action);

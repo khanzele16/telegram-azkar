@@ -6,6 +6,7 @@ axiosRetry(axios, {
   retries: 3,
   retryDelay: axiosRetry.exponentialDelay,
   retryCondition: (error) => {
+    console.log(error)
     return (
       axiosRetry.isNetworkError(error) ||
       axiosRetry.isRetryableError(error) ||
@@ -20,7 +21,7 @@ export const getPrayTime = async (
 ): Promise<IPrayTime | null> => {
   try {
     const { data } = await axios.get<IPrayTimeResponse>(
-      `https://api.aladhan.com/v1/timings?latitude=${latitude}&longitude=${longitude}&method=2`,
+      `https://api.aladhan.com/v1/timings?latitude=${latitude}&longitude=${longitude}&method=2`
     );
 
     return {
@@ -34,8 +35,8 @@ export const getPrayTime = async (
         Maghrib: data.data.timings.Maghrib,
       },
     };
-  } catch (err: any) {
-    console.error("⚠️ Ошибка получения времени молитв:", err.code || err.message);
+  } catch (err) {
+    console.error("⚠️ Ошибка получения времени молитв:", err);
     return null;
   }
 };

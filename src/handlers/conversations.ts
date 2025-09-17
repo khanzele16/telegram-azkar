@@ -110,7 +110,12 @@ export const locationConversation = async (
       { upsert: true, new: true }
     );
 
-    await updatePrayerTimesAndSchedule();
+    if (!ctx.from?.id) {
+      await ctx.reply("❌ Ошибка: не удалось определить пользователя");
+      return;
+    }
+
+    await updatePrayerTimesAndSchedule(ctx.from.id);
 
     await ctx.reply(
       `<b>🌞 Ваше местное время намаза на ${dayjs(

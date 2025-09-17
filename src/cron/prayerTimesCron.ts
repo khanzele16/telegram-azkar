@@ -4,19 +4,26 @@ import User from "../database/models/User";
 import { getPrayTime } from "../shared/requests";
 import { scheduleAzkarNotification, PrayerType } from "../index";
 
-export async function updatePrayerTimesAndSchedule(): Promise<void> {
+export async function updatePrayerTimesAndSchedule(
+  telegramId?: number
+): Promise<void> {
   try {
-    const users = await User.find({
-      "location.latitude": { $exists: true },
-      "location.longitude": { $exists: true },
-    });
+    let users;
+
+    if (telegramId) {
+      users = await User.find({ telegramId });
+    } else {
+      users = await User.find({
+        "location.latitude": { $exists: true },
+        "location.longitude": { $exists: true },
+      });
+    }
 
     for (const user of users) {
       if (!user.location) continue;
 
       const { latitude, longitude } = user.location;
       const userId = user._id.toString();
-      const telegramId = user.telegramId;
 
       try {
         const prayTime = await getPrayTime(
@@ -56,7 +63,7 @@ export async function updatePrayerTimesAndSchedule(): Promise<void> {
 
           await scheduleAzkarNotification(
             userId,
-            telegramId,
+            user.telegramId,
             prayer,
             date,
             runAtISO
@@ -64,7 +71,7 @@ export async function updatePrayerTimesAndSchedule(): Promise<void> {
         }
       } catch (err) {
         console.error(
-          `❌ Ошибка при обновлении времени намаза для ${telegramId}:`,
+          `❌ Ошибка при обновлении времени намаза для ${user.telegramId}:`,
           err
         );
       }

@@ -7,6 +7,6 @@ const Azkar = new Schema<IAzkar>({
   translation: String,
   transcription: String,
   audio: String,
-}, { timestamps: true, collection: "azkar" });
+});
 
 export default model<IAzkar>("Azkar", Azkar);

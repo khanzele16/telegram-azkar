@@ -12,7 +12,7 @@ import {
   startConversation,
 } from "./handlers/conversations";
 import { hydrate } from "@grammyjs/hydrate";
-import { menuButtons } from "./handlers/menu";
+import { adminMenuButtons, menuButtons } from "./handlers/menu";
 import { startPrayerTimesCron } from "./cron/prayerTimesCron";
 import User from "./database/models/User";
 
@@ -49,6 +49,7 @@ bot.use(createConversation(locationConversation, { plugins: [hydrate()] }));
 bot.use(createConversation(adminConversation, { plugins: [hydrate()] }));
 
 bot.use(menuButtons);
+bot.use(adminMenuButtons);
 
 commands.forEach((command) => {
   bot.command(command.command, command.action);

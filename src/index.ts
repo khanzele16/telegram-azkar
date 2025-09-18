@@ -50,7 +50,7 @@ commands.forEach((command) => {
 
 bot.chatType("private").on("my_chat_member", async (ctx) => {
   const status = ctx.myChatMember?.new_chat_member?.status;
-  const userId = ctx.chat?.id;
+  const userId = ctx.from?.id;
 
   if (!userId) return;
 
@@ -63,7 +63,10 @@ bot.chatType("private").on("my_chat_member", async (ctx) => {
   }
 });
 
-bot.command("admin", async (ctx) => {});
+bot.command("admin", async (ctx) => {
+  if (ctx.from?.id !== process.env.ADMIN_ID) return;
+  await ctx.conversation.enter("adminConversation");
+});
 
 bot.on("callback_query", handleCallbackQuery);
 bot.callbackQuery("menu", async (ctx) => {

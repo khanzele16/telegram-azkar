@@ -2,8 +2,7 @@ import User from "../database/models/User";
 import { register } from "../database/controllers/auth";
 import { type MyContext } from "../types";
 import { menuButtons } from "./menu";
-import { profileHandler } from "./index";
-import { statsHandler } from "./index";
+import { profileHandler, statsHandler } from "./";
 
 export const start = async (ctx: MyContext) => {
   try {
@@ -75,9 +74,20 @@ export const location = async (ctx: MyContext) => {
 export const profile = async (ctx: MyContext) => {
   try {
     await profileHandler(ctx);
-  } catch (error) {
-    console.error("Error in profile command:", error);
+  } catch (err) {
+    console.error("Error in profile command:", err);
     await ctx.reply("Произошла ошибка при загрузке профиля. Попробуйте позже.");
+  }
+};
+
+export const admin = async (ctx: MyContext) => {
+  try {
+    
+  } catch (err) {
+    console.error("Error in admin command:", err);
+    await ctx.reply(
+      "Произошла ошибка при загрузке админ-панели. Попробуйте позже."
+    );
   }
 };
 

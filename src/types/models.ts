@@ -16,6 +16,7 @@ export interface IUser {
     value: number;
     lastUpdated: Date;
   };
+  blocked: boolean;
   lastReadAt?: Date;
   preferences: {
     notifyMorning: boolean;

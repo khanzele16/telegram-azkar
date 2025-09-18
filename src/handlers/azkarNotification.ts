@@ -2,11 +2,15 @@ import { Api, InlineKeyboard } from "grammy";
 import User from "../database/models/User";
 import Azkar from "../database/models/Azkar";
 import { StreakService } from "../services/StreakService";
-import { postponeAzkarNotification, cancelAzkarNotification } from "../";
+import {
+  postponeAzkarNotification,
+  cancelAzkarNotification,
+} from "../cron/prayerTimesCron";
 import { Types } from "mongoose";
 import { MyContext } from "../types";
 import dotenv from "dotenv";
 import Day from "../database/models/Day";
+import { IAzkar } from "../types/models";
 
 dotenv.config({ path: "src/.env" });
 
@@ -75,7 +79,7 @@ const sliderStates = new Map<
     userId: Types.ObjectId;
     chatId: number;
     type: "morning" | "evening";
-    azkar: any[];
+    azkar: IAzkar[];
   }
 >();
 
@@ -132,7 +136,6 @@ function buildSliderKeyboard(
     .text(`${index + 1}/${total}`, `slider:${sliderId}:info`)
     .text("⏩", `slider:${sliderId}:next`)
     .row()
-    .text("Прочитал", `slider:${sliderId}:plus`)
     .text("✅ Завершить", `slider:${sliderId}:finish`);
 }
 
@@ -267,11 +270,17 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
 
   if (action === "prev") {
     state.index = Math.max(0, state.index - 1);
+    await ctx.answerCallbackQuery("👈 Предыдущий");
   } else if (action === "next") {
     state.index = Math.min(total - 1, state.index + 1);
+    await ctx.answerCallbackQuery("👉 Следующий");
   } else if (action === "finish") {
     sliderStates.delete(sliderId);
     try {
+      await Day.updateOne(
+        { userId: state.userId, date: state.date, type: state.type },
+        { $set: { status: "read", finishedAt: new Date() } }
+      );
       await ctx.editMessageText("🎉 Вы прочитали сегодня азкары, поздравляем!");
     } catch (err) {
       console.log(

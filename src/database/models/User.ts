@@ -18,6 +18,10 @@ const User = new Schema<IUser>(
       lastUpdated: Date,
     },
     lastReadAt: Date,
+    blocked: {
+      type: Boolean,
+      default: false,
+    },
     preferences: {
       notifyMorning: { type: Boolean, default: true },
       notifyEvening: { type: Boolean, default: true },

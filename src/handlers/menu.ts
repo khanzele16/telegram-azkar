@@ -1,14 +1,12 @@
 import { Menu } from "@grammyjs/menu";
 import { MyContext } from "../types";
-import { location } from "./commands";
-import { profileHandler } from "./index";
-import { statsHandler } from "./index";
+import { location, stats, profile, admin } from "./commands";
 
 export const menuButtons = new Menu<MyContext>("menu")
   .text("👤 Мой профиль", async (ctx) => {
     await ctx.answerCallbackQuery("👤 Мой профиль");
     ctx.menu.close();
-    await profileHandler(ctx);
+    await profile(ctx);
   })
   .row()
   .text("📍 Геолокация", async (ctx) => {
@@ -19,7 +17,7 @@ export const menuButtons = new Menu<MyContext>("menu")
   .text("🗓 Статистика", async (ctx) => {
     await ctx.answerCallbackQuery("🗓  Статистика");
     ctx.menu.close();
-    await statsHandler(ctx);
+    await stats(ctx);
   })
   .row()
   .text("❓ Помощь", async (ctx) => {
@@ -31,3 +29,12 @@ export const menuButtons = new Menu<MyContext>("menu")
     );
   });
 
+export const adminMenuButtons = new Menu<MyContext>("admin-menu")
+  .text("👤 Статистика", async (ctx) => {
+    await ctx.answerCallbackQuery("👤 Статистика");
+    ctx.menu.close();
+  })
+  .text("📥 Рассылка", async (ctx) => {
+    await ctx.answerCallbackQuery("📥 Рассылка");
+    ctx.menu.close();
+  });

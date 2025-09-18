@@ -2,11 +2,7 @@ import User from "../database/models/User";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import dayjs from "dayjs";
-import {
-  locationKeyboard,
-  startKeyboard,
-  toMenuKeyboard,
-} from "../shared/keyboards";
+import { locationKeyboard, startKeyboard } from "../shared/keyboards";
 import { getPrayTime } from "../shared/requests";
 import { IPrayTime, MyConversation, MyConversationContext } from "../types";
 import { updatePrayerTimesAndSchedule } from "../cron/prayerTimesCron";
@@ -132,5 +128,24 @@ export const locationConversation = async (
     await ctx.reply(
       "❌ Ошибка при получении времени намаза. Попробуйте снова."
     );
+  }
+};
+
+export const adminConversation = async (
+  conversation: MyConversation,
+  ctx: MyConversationContext
+): Promise<void> => {
+  try {
+    await ctx.reply("📊 Админ-панель", {
+      reply_markup: conversation.menu("admin-menu"),
+    });
+    const { callbackQuery } = await conversation.waitFor("callback_query");
+    if (callbackQuery.data === "admin:statistic") {
+      const blockedUsers = await User.find({ blocked: false }).countDocuments();
+      console.log(blockedUsers);
+    }
+  } catch (err) {
+    console.error("Ошибка в adminConversation:", err);
+    await ctx.reply("❌ Ошибка при получении админ-панели. Попробуйте снова.");
   }
 };

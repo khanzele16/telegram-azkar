@@ -48,7 +48,7 @@ export async function statsHandler(ctx: MyContext): Promise<void> {
       parse_mode: "HTML",
     });
   } catch (error) {
-    console.error("❌ Ошибка в statsHandler:", error);
+    console.error("❌ Ошибка в stats:", error);
     await ctx.reply("❌ Произошла ошибка при загрузке статистики");
   }
 }

@@ -13,10 +13,7 @@ import {
 import { hydrate } from "@grammyjs/hydrate";
 import { menuButtons } from "./handlers/menu";
 import { startPrayerTimesCron } from "./cron/prayerTimesCron";
-import { Queue, QueueEvents, Worker } from "bullmq";
-import Redis from "ioredis";
-import { sendAzkarNotification } from "./handlers/azkarNotification";
-import Day from "./database/models/Day";
+import User from "./database/models/User";
 
 dotenv.config({ path: "src/.env", override: true });
 
@@ -51,6 +48,23 @@ commands.forEach((command) => {
   bot.callbackQuery(command.command, command.action);
 });
 
+bot.chatType("private").on("my_chat_member", async (ctx) => {
+  const status = ctx.myChatMember?.new_chat_member?.status;
+  const userId = ctx.chat?.id;
+
+  if (!userId) return;
+
+  if (status === "kicked") {
+    console.log(`🚫 User ${userId} blocked the bot`);
+    await User.updateOne({ telegramId: userId }, { $set: { blocked: true } });
+  } else if (status === "member") {
+    console.log(`✅ User ${userId} unblocked the bot`);
+    await User.updateOne({ telegramId: userId }, { $set: { blocked: false } });
+  }
+});
+
+bot.command("admin", async (ctx) => {});
+
 bot.on("callback_query", handleCallbackQuery);
 bot.callbackQuery("menu", async (ctx) => {
   await ctx.answerCallbackQuery();
@@ -72,123 +86,6 @@ bot.catch((err) => {
     console.error("❌ Неизвестная ошибка:", e);
   }
 });
-
-const connection = new Redis(process.env.REDIS_URL as string, {
-  maxRetriesPerRequest: null,
-});
-
-export type PrayerType = "Fajr" | "Maghrib";
-
-export const azkarQueue = new Queue("azkar", { connection });
-export const azkarQueueEvents = new QueueEvents("azkar", { connection });
-
-function jobKey(userId: string, prayer: PrayerType, date: string) {
-  return `azkar:${userId}:${prayer}:${date}`;
-}
-
-export async function scheduleAzkarNotification(
-  userId: string,
-  telegramId: number,
-  prayer: PrayerType,
-  date: string,
-  runAtISO: string
-): Promise<void> {
-  const type = prayer === "Fajr" ? "morning" : "evening";
-
-  const existing = await Day.findOne({ userId, date, type });
-  if (
-    existing &&
-    (existing.status === "skipped" || existing.status === "read")
-  ) {
-    console.log(`⏩ Пропуск: ${userId} уже ${existing.status} ${type} азкары`);
-    return;
-  }
-
-  const runAt = new Date(runAtISO).getTime();
-  const now = Date.now();
-
-  if (runAt <= now) {
-    console.log(
-      `⚠️ Пропущено планирование: время ${runAtISO} уже прошло (${prayer})`
-    );
-    return;
-  }
-
-  const delay = runAt - now;
-  const jobId = jobKey(userId, prayer, date);
-
-  const oldJob = await azkarQueue.getJob(jobId);
-  if (oldJob) {
-    await oldJob.remove();
-    console.log(`🗑️ Удалено старое задание ${jobId}`);
-  }
-
-  await azkarQueue.add(
-    "send",
-    { userId, telegramId, prayer, date },
-    { jobId, delay, attempts: 3, removeOnComplete: true, removeOnFail: 50 }
-  );
-
-  console.log(
-    `✅ Запланировано ${prayer} для ${userId} на ${new Date(
-      runAt
-    ).toISOString()}`
-  );
-}
-
-export async function postponeAzkarNotification(
-  userId: string,
-  telegramId: number,
-  prayer: PrayerType,
-  date: string
-): Promise<void> {
-  const jobId = jobKey(userId, prayer, date);
-
-  const oldJob = await azkarQueue.getJob(jobId);
-  if (oldJob) {
-    await oldJob.remove();
-    console.log(`🗑️ Старое задание ${jobId} удалено перед откладыванием`);
-  }
-
-  const delay = 60 * 60 * 1000;
-  await azkarQueue.add(
-    "send",
-    { userId, telegramId, prayer, date },
-    { jobId, delay, attempts: 3, removeOnComplete: true, removeOnFail: 50 }
-  );
-
-  console.log(
-    `⏰ Отложено ${prayer} для ${userId} на ${new Date(
-      Date.now() + delay
-    ).toISOString()}`
-  );
-}
-
-export async function cancelAzkarNotification(
-  userId: string,
-  prayer: PrayerType,
-  date: string
-): Promise<void> {
-  const jobId = jobKey(userId, prayer, date);
-  const oldJob = await azkarQueue.getJob(jobId);
-  if (oldJob) {
-    await oldJob.remove();
-    console.log(`❌ Уведомление отменено: ${jobId}`);
-  }
-}
-
-export const azkarWorker = new Worker(
-  "azkar",
-  async (job) => {
-    const { telegramId, prayer, date } = job.data as {
-      telegramId: number;
-      prayer: PrayerType;
-      date: string;
-    };
-    await sendAzkarNotification(telegramId, prayer, date);
-  },
-  { connection, concurrency: 5 }
-);
 
 startPrayerTimesCron();
 

@@ -7,6 +7,7 @@ import { messageHandler } from "./handlers/message";
 import { handleCallbackQuery } from "./handlers/callbackHandler";
 import { commands } from "./config";
 import {
+  adminConversation,
   locationConversation,
   startConversation,
 } from "./handlers/conversations";
@@ -40,6 +41,7 @@ commands.forEach((command) => {
 
 bot.use(createConversation(startConversation, { plugins: [hydrate()] }));
 bot.use(createConversation(locationConversation, { plugins: [hydrate()] }));
+bot.use(createConversation(adminConversation, { plugins: [hydrate()] }));
 
 bot.use(menuButtons);
 
@@ -64,7 +66,7 @@ bot.chatType("private").on("my_chat_member", async (ctx) => {
 });
 
 bot.command("admin", async (ctx) => {
-  if (ctx.from?.id !== process.env.ADMIN_ID) return;
+  if (ctx.from?.id !== Number(process.env.ADMIN_ID)) return;
   await ctx.conversation.enter("adminConversation");
 });
 

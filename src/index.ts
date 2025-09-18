@@ -39,6 +39,11 @@ commands.forEach((command) => {
   });
 });
 
+bot.command("admin", async (ctx, next: NextFunction) => {
+  await ctx.conversation.exitAll();
+  return next();
+});
+
 bot.use(createConversation(startConversation, { plugins: [hydrate()] }));
 bot.use(createConversation(locationConversation, { plugins: [hydrate()] }));
 bot.use(createConversation(adminConversation, { plugins: [hydrate()] }));

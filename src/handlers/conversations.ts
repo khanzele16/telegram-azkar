@@ -6,8 +6,7 @@ import { locationKeyboard, startKeyboard } from "../shared/keyboards";
 import { getPrayTime } from "../shared/requests";
 import { IPrayTime, MyConversation, MyConversationContext } from "../types";
 import { updatePrayerTimesAndSchedule } from "../cron/prayerTimesCron";
-import { menu } from "./commands";
-import { menuButtons } from "./menu";
+import { adminMenuButtons } from "./menu";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -137,7 +136,7 @@ export const adminConversation = async (
 ): Promise<void> => {
   try {
     await ctx.reply("📊 Админ-панель", {
-      reply_markup: conversation.menu("admin-menu"),
+      reply_markup: adminMenuButtons,
     });
     const { callbackQuery } = await conversation.waitFor("callback_query");
     if (callbackQuery.data === "admin:statistic") {

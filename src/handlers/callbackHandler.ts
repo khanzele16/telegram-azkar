@@ -4,6 +4,7 @@ import {
   handleAzkarNotifyCallback,
   handleSliderCallback,
 } from "./azkarNotification";
+import User from "../database/models/User";
 
 export async function handleCallbackQuery(ctx: MyContext): Promise<void> {
   try {

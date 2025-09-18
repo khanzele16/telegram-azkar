@@ -1,8 +1,11 @@
 import User from "../database/models/User";
+import dotenv from "dotenv";
 import { register } from "../database/controllers/auth";
 import { type MyContext } from "../types";
-import { menuButtons } from "./menu";
+import { adminMenuButtons, menuButtons } from "./menu";
 import { profileHandler, statsHandler } from "./";
+
+dotenv.config({ path: "src/.env" });
 
 export const start = async (ctx: MyContext) => {
   try {
@@ -82,7 +85,8 @@ export const profile = async (ctx: MyContext) => {
 
 export const admin = async (ctx: MyContext) => {
   try {
-    
+    if (ctx.from?.id !== Number(process.env.ADMIN_ID)) return;
+    await ctx.reply("📊 Админ-панель", { reply_markup: adminMenuButtons });
   } catch (err) {
     console.error("Error in admin command:", err);
     await ctx.reply(

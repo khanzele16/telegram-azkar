@@ -129,22 +129,3 @@ export const locationConversation = async (
     );
   }
 };
-
-export const adminConversation = async (
-  conversation: MyConversation,
-  ctx: MyConversationContext
-): Promise<void> => {
-  try {
-    await ctx.reply("📊 Админ-панель", {
-      reply_markup: adminMenuButtons,
-    });
-    const { callbackQuery } = await conversation.waitFor("callback_query");
-    if (callbackQuery.data === "admin:statistic") {
-      const blockedUsers = await User.find({ blocked: false }).countDocuments();
-      console.log(blockedUsers);
-    }
-  } catch (err) {
-    console.error("Ошибка в adminConversation:", err);
-    await ctx.reply("❌ Ошибка при получении админ-панели. Попробуйте снова.");
-  }
-};

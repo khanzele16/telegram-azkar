@@ -1,6 +1,7 @@
 import { Menu } from "@grammyjs/menu";
 import { MyContext } from "../types";
 import { location, stats, profile, admin } from "./commands";
+import User from "../database/models/User";
 
 export const menuButtons = new Menu<MyContext>("menu")
   .text("👤 Мой профиль", async (ctx) => {
@@ -33,6 +34,9 @@ export const adminMenuButtons = new Menu<MyContext>("admin-menu")
   .text("👤 Статистика", async (ctx) => {
     await ctx.answerCallbackQuery("👤 Статистика");
     ctx.menu.close();
+    const blockedUsers = await User.find({ blocked: false }).countDocuments();
+    console.log(blockedUsers);
+    return;
   })
   .text("📥 Рассылка", async (ctx) => {
     await ctx.answerCallbackQuery("📥 Рассылка");

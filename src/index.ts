@@ -7,7 +7,6 @@ import { messageHandler } from "./handlers/message";
 import { handleCallbackQuery } from "./handlers/callbackHandler";
 import { commands } from "./config";
 import {
-  adminConversation,
   locationConversation,
   startConversation,
 } from "./handlers/conversations";
@@ -15,6 +14,7 @@ import { hydrate } from "@grammyjs/hydrate";
 import { adminMenuButtons, menuButtons } from "./handlers/menu";
 import { startPrayerTimesCron } from "./cron/prayerTimesCron";
 import User from "./database/models/User";
+import { admin } from "./handlers/commands";
 
 dotenv.config({ path: "src/.env", override: true });
 
@@ -46,7 +46,6 @@ bot.command("admin", async (ctx, next: NextFunction) => {
 
 bot.use(createConversation(startConversation, { plugins: [hydrate()] }));
 bot.use(createConversation(locationConversation, { plugins: [hydrate()] }));
-bot.use(createConversation(adminConversation, { plugins: [hydrate()] }));
 
 bot.use(menuButtons);
 bot.use(adminMenuButtons);
@@ -71,10 +70,7 @@ bot.chatType("private").on("my_chat_member", async (ctx) => {
   }
 });
 
-bot.command("admin", async (ctx) => {
-  if (ctx.from?.id !== Number(process.env.ADMIN_ID)) return;
-  await ctx.conversation.enter("adminConversation");
-});
+bot.command("admin", admin);
 
 bot.on("callback_query", handleCallbackQuery);
 bot.callbackQuery("menu", async (ctx) => {

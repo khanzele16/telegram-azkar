@@ -25,20 +25,35 @@ export const getPrayTime = async (
     const { data } = await axios.get<IPrayTimeResponse>(
       `https://api.aladhan.com/v1/calendar?month=${month}&latitude=${latitude}&longitude=${longitude}&method=2`
     );
-    const today = dayjs().format("DD-MM-YYYY");
+    const today = dayjs();
+    console.log(
+      data.data
+        .map((item) => {
+          return {
+            date: item.date.gregorian.date,
+            Fajr: item.timings.Fajr.replace(/\s*\(.*?\)\s*/g, ""),
+            Maghrib: item.timings.Maghrib.replace(/\s*\(.*?\)\s*/g, ""),
+          };
+        })
+        .filter((item) => {
+          const [day, month, year] = item.date.split("-");
+          const itemDay = dayjs(`${year}-${month}-${day}`);
+          return itemDay.isSame(today, "day") || itemDay.isAfter(today, "day");
+        })
+    );
     return data.data
       .map((item) => {
         return {
-          date: item.date.gregoian.date,
+          date: item.date.gregorian.date,
           Fajr: item.timings.Fajr.replace(/\s*\(.*?\)\s*/g, ""),
           Maghrib: item.timings.Maghrib.replace(/\s*\(.*?\)\s*/g, ""),
         };
       })
-      .filter(
-        (item) =>
-          dayjs(item.date, "DD-MM-YYYY").isAfter(today, "day") ||
-          dayjs(item.date, "DD-MM-YYYY").isSame(today, "day")
-      );
+      .filter((item) => {
+        const [day, month, year] = item.date.split("-");
+        const itemDay = dayjs(`${year}-${month}-${day}`);
+        return itemDay.isSame(today, "day") || itemDay.isAfter(today, "day");
+      });
   } catch (err) {
     console.error("⚠️ Ошибка получения времени молитв:", err);
     return null;

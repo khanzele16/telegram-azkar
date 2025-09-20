@@ -14,7 +14,7 @@ export interface IPrayTimeResponse {
   data: [
     {
       date: {
-        gregoian: {
+        gregorian: {
           date: string;
         };
       };

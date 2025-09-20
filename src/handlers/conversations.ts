@@ -103,9 +103,7 @@ export const locationConversation = async (
         $set: {
           "location.latitude": latitude.toString(),
           "location.longitude": longitude.toString(),
-        },
-        $push: {
-          timings: { $each: timingsToAdd },
+          timings: timingsToAdd,
         },
       },
       { upsert: true, new: true }
@@ -145,9 +143,9 @@ export const locationConversation = async (
     await updatePrayerTimesAndSchedule();
 
     const ctx_message = await ctx.reply(
-      `<b>🌞 Ваше местное время намаза на ${dayjs(
-        todayPrayTime.date
-      ).format("D MMMM YYYY")}</b>\n` +
+      `<b>🌞 Ваше местное время намаза на ${dayjs(todayPrayTime.date).format(
+        "D MMMM YYYY"
+      )}</b>\n` +
         `🌅 Фаджр — ${todayPrayTime.Fajr}\n` +
         `🌃 Магриб — ${todayPrayTime.Maghrib}\n\n` +
         "✅ Ваш аккаунт настроен, уведомления будут приходить автоматически.",
@@ -174,7 +172,9 @@ export const locationConversation = async (
     }
 
     if (message) {
-      await ctx.reply("Пожалуйста, используйте кнопку '🏠 К главному меню' для перехода в меню.");
+      await ctx.reply(
+        "Пожалуйста, используйте кнопку '🏠 К главному меню' для перехода в меню."
+      );
       return;
     }
   } catch (err) {

@@ -57,16 +57,13 @@ export async function scheduleAzkarNotification(
 export async function updatePrayerTimesAndSchedule(
   telegramId?: number
 ): Promise<void> {
-  let users;
-  if (telegramId) {
-    users = await User.find({ telegramId });
-  } else {
-    users = await User.find({
-      "location.latitude": { $exists: true },
-      "location.longitude": { $exists: true },
-      blocked: false,
-    });
-  }
+  const users = telegramId
+    ? await User.find({ telegramId })
+    : await User.find({
+        "location.latitude": { $exists: true },
+        "location.longitude": { $exists: true },
+        blocked: false,
+      });
 
   for (const user of users) {
     if (!user.location) continue;
@@ -81,37 +78,64 @@ export async function updatePrayerTimesAndSchedule(
     );
     if (!prayTimes) continue;
 
-    for (const pt of prayTimes) {
-      const existingDay = await Day.findOne({ userId, date: pt.date });
-      if (!existingDay) {
-        const fajrUTC = dayjs(pt.date + " " + pt.Fajr, "DD-MM-YYYY HH:mm")
-          .utc()
-          .toISOString();
-        const maghribUTC = dayjs(pt.date + " " + pt.Maghrib, "DD-MM-YYYY HH:mm")
-          .utc()
-          .toISOString();
+    const timingsToAdd = prayTimes.map((pt) => {
+      const fajrUTC = dayjs(`${pt.date} ${pt.Fajr}`, "DD-MM-YYYY HH:mm")
+        .utc()
+        .toISOString();
+      const maghribUTC = dayjs(`${pt.date} ${pt.Maghrib}`, "DD-MM-YYYY HH:mm")
+        .utc()
+        .toISOString();
 
-        await Day.create([
-          {
-            userId,
-            date: pt.date,
-            type: "morning",
-            utcTime: fajrUTC,
-            status: "pending",
-          },
-          {
-            userId,
-            date: pt.date,
-            type: "evening",
-            utcTime: maghribUTC,
-            status: "pending",
-          },
-        ]);
+      return {
+        date: pt.date,
+        FajrUTC: fajrUTC,
+        MaghribUTC: maghribUTC,
+      };
+    });
+
+    for (const timing of timingsToAdd) {
+      await User.updateOne(
+        { _id: user._id, "timings.date": { $ne: timing.date } },
+        { $push: { timings: timing } }
+      );
+    }
+
+    // Создаём/обновляем документы Day
+    for (const timing of timingsToAdd) {
+      const existingDayMorning = await Day.findOne({
+        userId,
+        date: timing.date,
+        type: "morning",
+      });
+      const existingDayEvening = await Day.findOne({
+        userId,
+        date: timing.date,
+        type: "evening",
+      });
+
+      if (!existingDayMorning) {
+        await Day.create({
+          userId,
+          date: timing.date,
+          type: "morning",
+          utcTime: timing.FajrUTC,
+          status: "pending",
+        });
+      }
+
+      if (!existingDayEvening) {
+        await Day.create({
+          userId,
+          date: timing.date,
+          type: "evening",
+          utcTime: timing.MaghribUTC,
+          status: "pending",
+        });
       }
     }
 
-    const days = await Day.find({ userId, status: "pending" });
-    for (const day of days) {
+    const pendingDays = await Day.find({ userId, status: "pending" });
+    for (const day of pendingDays) {
       if (day.type === "morning") {
         await scheduleAzkarNotification(
           userId,

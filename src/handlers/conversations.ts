@@ -65,7 +65,7 @@ export const locationConversation = async (
   const { latitude, longitude } = message.location;
 
   try {
-    const month = dayjs().month() + 1; // 1-12
+    const month = dayjs().month() + 1; // текущий месяц
     const prayTimes: IPrayTime[] | null = await getPrayTime(
       latitude.toString(),
       longitude.toString(),
@@ -79,47 +79,75 @@ export const locationConversation = async (
       return;
     }
 
-    const today = dayjs().format("DD-MM-YYYY");
-    const todayPrayTime =
-      prayTimes.find((p) => p.date === today) || prayTimes[0];
+    // Формируем массив для вставки в timings
+    const timingsToAdd = prayTimes.map((pt) => {
+      const fajrUTC = dayjs(`${pt.date} ${pt.Fajr}`, "DD-MM-YYYY HH:mm")
+        .utc()
+        .toISOString();
+      const maghribUTC = dayjs(`${pt.date} ${pt.Maghrib}`, "DD-MM-YYYY HH:mm")
+        .utc()
+        .toISOString();
 
-    const [fajrHour, fajrMinute] = todayPrayTime.Fajr.split(":").map(Number);
-    const [maghribHour, maghribMinute] =
-      todayPrayTime.Maghrib.split(":").map(Number);
+      return {
+        date: pt.date,
+        FajrUTC: fajrUTC,
+        MaghribUTC: maghribUTC,
+      };
+    });
 
-    const fajrLocal = dayjs().hour(fajrHour).minute(fajrMinute);
-    const maghribLocal = dayjs().hour(maghribHour).minute(maghribMinute);
-
-    const timingsUTC = {
-      FajrUTC: fajrLocal.utc().toISOString(),
-      MaghribUTC: maghribLocal.utc().toISOString(),
-    };
-
+    // Обновляем пользователя: добавляем все timings за месяц
     await User.findOneAndUpdate(
       { telegramId: ctx.from?.id },
       {
         $set: {
           "location.latitude": latitude.toString(),
           "location.longitude": longitude.toString(),
-          "timings.FajrUTC": timingsUTC.FajrUTC,
-          "timings.MaghribUTC": timingsUTC.MaghribUTC,
-          date: todayPrayTime.date,
-          localTimings: {
-            Fajr: todayPrayTime.Fajr,
-            Maghrib: todayPrayTime.Maghrib,
-          },
+        },
+        $push: {
+          timings: { $each: timingsToAdd },
         },
       },
       { upsert: true, new: true }
     );
 
+    const user = await User.findOne({ telegramId: ctx.from?.id });
+
+    // Создаем/обновляем Day документы для всех дней месяца
+    for (const timing of timingsToAdd) {
+      const existingDay = await Day.findOne({
+        userId: user!._id,
+        date: timing.date,
+      });
+      if (!existingDay) {
+        await Day.create([
+          {
+            userId: user!._id,
+            date: timing.date,
+            type: "morning",
+            utcTime: timing.FajrUTC,
+            status: "pending",
+          },
+          {
+            userId: user!._id,
+            date: timing.date,
+            type: "evening",
+            utcTime: timing.MaghribUTC,
+            status: "pending",
+          },
+        ]);
+      }
+    }
+
+    // Находим сегодняшние молитвы
+    const today = dayjs().format("DD-MM-YYYY");
+    const todayPrayTime =
+      prayTimes.find((p) => p.date === today) || prayTimes[0];
+
     await ctx.reply(
-      `<b>🌞 Ваше местное время намаза на ${dayjs().format(
-        "D MMMM YYYY"
-      )}</b>\n` +
-        `🌅 Фаджр — ${todayPrayTime.Fajr}\n` +
-        `🌃 Магриб — ${todayPrayTime.Maghrib}\n\n` +
-        "✅ Ваш аккаунт настроен, уведомления будут приходить автоматически.\n" +
+      `<b>🌞 Ваши напоминания на месяц настроены</b>\n` +
+        `🌅 Фаджр сегодня — ${todayPrayTime.Fajr}\n` +
+        `🌃 Магриб сегодня — ${todayPrayTime.Maghrib}\n\n` +
+        "✅ Утренние и вечерние азкары будут приходить автоматически.\n" +
         "🏠 Можете перейти в <b>главное меню с помощью /menu.</b>",
       { parse_mode: "HTML" }
     );

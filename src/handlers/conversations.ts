@@ -2,10 +2,14 @@ import User from "../database/models/User";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import dayjs from "dayjs";
-import { locationKeyboard, startKeyboard } from "../shared/keyboards";
+import {
+  locationKeyboard,
+  MailingKeyboard,
+  startKeyboard,
+} from "../shared/keyboards";
 import { getPrayTime } from "../shared/requests";
 import { IPrayTime, MyConversation, MyConversationContext } from "../types";
-import { updatePrayerTimesAndSchedule } from "../cron/prayerTimesCron";
+// import { updatePrayerTimesAndSchedule } from "../cron/prayerTimesCron";
 import { adminMenuButtons } from "./menu";
 
 dayjs.extend(utc);
@@ -61,29 +65,30 @@ export const locationConversation = async (
   const { latitude, longitude } = message.location;
 
   try {
-    const prayTime: IPrayTime | null = await getPrayTime(
+    const month = dayjs().month() + 1; // 1-12
+    const prayTimes: IPrayTime[] | null = await getPrayTime(
       latitude.toString(),
-      longitude.toString()
+      longitude.toString(),
+      month
     );
 
-    if (!prayTime) {
+    if (!prayTimes || prayTimes.length === 0) {
       await ctx.reply(
         "❌ Ошибка при получении времени намаза. Попробуйте снова."
       );
       return;
     }
 
-    const fajrLocal = dayjs
-      .unix(prayTime.date.timestamp)
-      .tz(prayTime.meta.timezone)
-      .hour(Number(prayTime.timings.Fajr.split(":")[0]))
-      .minute(Number(prayTime.timings.Fajr.split(":")[1]));
+    const today = dayjs().format("DD-MM-YYYY");
+    const todayPrayTime =
+      prayTimes.find((p) => p.date === today) || prayTimes[0];
 
-    const maghribLocal = dayjs
-      .unix(prayTime.date.timestamp)
-      .tz(prayTime.meta.timezone)
-      .hour(Number(prayTime.timings.Maghrib.split(":")[0]))
-      .minute(Number(prayTime.timings.Maghrib.split(":")[1]));
+    const [fajrHour, fajrMinute] = todayPrayTime.Fajr.split(":").map(Number);
+    const [maghribHour, maghribMinute] =
+      todayPrayTime.Maghrib.split(":").map(Number);
+
+    const fajrLocal = dayjs().hour(fajrHour).minute(fajrMinute);
+    const maghribLocal = dayjs().hour(maghribHour).minute(maghribMinute);
 
     const timingsUTC = {
       FajrUTC: fajrLocal.utc().toISOString(),
@@ -98,26 +103,22 @@ export const locationConversation = async (
           "location.longitude": longitude.toString(),
           "timings.FajrUTC": timingsUTC.FajrUTC,
           "timings.MaghribUTC": timingsUTC.MaghribUTC,
-          date: prayTime.date,
-          localTimings: prayTime.timings,
+          date: todayPrayTime.date,
+          localTimings: {
+            Fajr: todayPrayTime.Fajr,
+            Maghrib: todayPrayTime.Maghrib,
+          },
         },
       },
       { upsert: true, new: true }
     );
 
-    if (!ctx.from?.id) {
-      await ctx.reply("❌ Ошибка: не удалось определить пользователя");
-      return;
-    }
-
-    await updatePrayerTimesAndSchedule(ctx.from.id);
-
     await ctx.reply(
-      `<b>🌞 Ваше местное время намаза на ${dayjs(
-        prayTime.date.timestamp * 1000
-      ).format("D MMMM YYYY")}</b>\n` +
-        `🌅 Фаджр — ${prayTime.timings.Fajr}\n` +
-        `🌃 Магриб — ${prayTime.timings.Maghrib}\n\n` +
+      `<b>🌞 Ваше местное время намаза на ${dayjs().format(
+        "D MMMM YYYY"
+      )}</b>\n` +
+        `🌅 Фаджр — ${todayPrayTime.Fajr}\n` +
+        `🌃 Магриб — ${todayPrayTime.Maghrib}\n\n` +
         "✅ Ваш аккаунт настроен, уведомления будут приходить автоматически.\n" +
         "🏠 Можете перейти в <b>главное меню с помощью /menu.</b>",
       { parse_mode: "HTML" }
@@ -129,3 +130,81 @@ export const locationConversation = async (
     );
   }
 };
+
+export async function broadcastConversation(
+  conversation: MyConversation,
+  ctx: MyConversationContext
+) {
+  await ctx.reply("✏️ Введите текст для рассылки:");
+  const { message } = await conversation.waitFor(":text");
+  const text = message?.text;
+  if (!text) {
+    await ctx.reply("❌ Нужно ввести текст");
+    return await broadcastConversation(conversation, ctx);
+  }
+
+  await ctx.reply("🖼 Пришлите изображение (или напишите 'нет'):");
+  const { message: imageMessage } = await conversation.waitFor("message");
+
+  let photo: string | null = null;
+  if (imageMessage?.photo) {
+    photo = imageMessage.photo[imageMessage.photo.length - 1].file_id;
+  }
+  try {
+    if (photo) {
+      await ctx.replyWithPhoto(photo, {
+        caption: `<b>📢 Предпросмотр сообщения рассылки:</b>\n\n${text}\n\nНачать рассылку?`,
+        parse_mode: "HTML",
+        reply_markup: MailingKeyboard,
+      });
+    } else {
+      await ctx.reply(
+        `<b>📢 Предпросмотр сообщения рассылки:</b>\n\n${text}\n\nНачать рассылку?`,
+        { reply_markup: MailingKeyboard, parse_mode: "HTML" }
+      );
+    }
+  } catch (err) {
+    await ctx.reply("❌ Ошибка при обработке сообщения для рассылки");
+    console.log("Ошибка при обработке сообщения для рассылки: ", err);
+  }
+
+  const { callbackQuery } = await conversation.waitFor("callback_query");
+
+  if (callbackQuery?.data === "mailing:cancel") {
+    await ctx.api.answerCallbackQuery(callbackQuery.id, {
+      text: "❌ Рассылка отменена.",
+    });
+    await ctx.reply("❌ Рассылка отменена.");
+    return;
+  } else if (callbackQuery?.data === "mailing:yes") {
+    await ctx.api.answerCallbackQuery(callbackQuery.id, {
+      text: "📤 Начинаем рассылку...",
+    });
+    await ctx.reply("📤 Начинаем рассылку...");
+  }
+
+  const users = await User.find({
+    blocked: false,
+  });
+
+  let success = 0;
+  for (const user of users) {
+    try {
+      if (photo) {
+        await ctx.api.sendPhoto(user.telegramId, photo, {
+          parse_mode: "HTML",
+          caption: text,
+        });
+      } else {
+        await ctx.api.sendMessage(user.telegramId, text, {
+          parse_mode: "HTML",
+        });
+      }
+      success++;
+    } catch (err) {
+      console.error(`Ошибка рассылки ${user.telegramId}:`, err);
+    }
+  }
+
+  await ctx.reply(`✅ Рассылка завершена. Успешно отправлено: ${success}`);
+}

@@ -14,3 +14,5 @@ export const toAdminKeyboard = new InlineKeyboard().text(
   "🔙 Вернуться",
   "admin"
 );
+
+export const MailingKeyboard = new InlineKeyboard().text('✅ Да', 'mailing:yes').text('❌ Нет', 'mailing:cancel');

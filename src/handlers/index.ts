@@ -149,20 +149,24 @@ export async function profileHandler(ctx: MyContext): Promise<void> {
     }
 
     const stats = await StreakService.getProfileStats(user._id);
-    const prayTime: IPrayTime | null = await getPrayTime(
+
+    const today = dayjs().format("DD-MM-YYYY");
+    const prayTimes: IPrayTime[] | null = await getPrayTime(
       user.location.latitude.toString(),
-      user.location.longitude.toString()
+      user.location.longitude.toString(),
+      dayjs().month() + 1
     );
+
+    const todayPrayTime = prayTimes?.find((pt) => pt.date === today);
 
     await ctx.reply(
       `<b>👤 Профиль — ${user.username || "Ваш"}</b>\n\n🌅 Утренний намаз: ${
-        prayTime?.timings.Fajr || "-"
+        todayPrayTime?.Fajr || "-"
       }\n🌃 Вечерний намаз: ${
-        prayTime?.timings.Maghrib || "-"
+        todayPrayTime?.Maghrib || "-"
       }\n\n🌅 Утренние: <b>${stats.morningRead}</b> дней (пропущено: ${
         stats.morningSkipped
-      })
-🌇 Вечерние: <b>${stats.eveningRead}</b> дней (пропущено: ${
+      })\n🌇 Вечерние: <b>${stats.eveningRead}</b> дней (пропущено: ${
         stats.eveningSkipped
       })`,
       { parse_mode: "HTML" }

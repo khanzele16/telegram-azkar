@@ -7,12 +7,13 @@ import { messageHandler } from "./handlers/message";
 import { handleCallbackQuery } from "./handlers/callbackHandler";
 import { commands } from "./config";
 import {
+  broadcastConversation,
   locationConversation,
   startConversation,
 } from "./handlers/conversations";
 import { hydrate } from "@grammyjs/hydrate";
 import { adminMenuButtons, menuButtons } from "./handlers/menu";
-import { startPrayerTimesCron } from "./cron/prayerTimesCron";
+import { startPrayerTimesCron, updatePrayerTimesAndSchedule } from "./cron/prayerTimesCron";
 import User from "./database/models/User";
 import { admin } from "./handlers/commands";
 
@@ -46,6 +47,7 @@ bot.command("admin", async (ctx, next: NextFunction) => {
 
 bot.use(createConversation(startConversation, { plugins: [hydrate()] }));
 bot.use(createConversation(locationConversation, { plugins: [hydrate()] }));
+bot.use(createConversation(broadcastConversation, { plugins: [hydrate()] }));
 
 bot.use(menuButtons);
 bot.use(adminMenuButtons);

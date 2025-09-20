@@ -58,6 +58,7 @@ export interface IDay {
   date: string;
   type: "morning" | "evening";
   status: "pending" | "read" | "skipped" | "postponed";
+  utcTime: string;
   startedAt?: Date;
   finishedAt?: Date;
   postponedUntil?: Date;

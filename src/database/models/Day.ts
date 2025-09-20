@@ -3,7 +3,12 @@ import { IDay } from "../../types/models";
 
 const Day = new Schema<IDay>(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
     date: { type: String, required: true, index: true },
     type: { type: String, enum: ["morning", "evening"], required: true },
     status: {
@@ -11,6 +16,7 @@ const Day = new Schema<IDay>(
       enum: ["pending", "read", "skipped", "postponed"],
       default: "pending",
     },
+    utcTime: { type: String, required: true },
     messageId: Number,
     startedAt: Date,
     finishedAt: Date,

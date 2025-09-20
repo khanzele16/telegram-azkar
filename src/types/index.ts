@@ -11,33 +11,25 @@ export interface ICommand extends BotCommand {
 }
 
 export interface IPrayTimeResponse {
-  data: {
-    date: {
-      readable: string;
-      timestamp: string;
-    };
-    meta: {
-      timezone: string;
-    };
-    timings: {
-      Fajr: string;
-      Maghrib: string;
-    };
-  };
+  data: [
+    {
+      date: {
+        gregoian: {
+          date: string;
+        };
+      };
+      timings: {
+        Fajr: string;
+        Maghrib: string;
+      };
+    }
+  ];
 }
 
 export interface IPrayTime {
-  meta: {
-    timezone: string;
-  };
-  date: {
-    readable: string;
-    timestamp: number;
-  };
-  timings: {
-    Fajr: string;
-    Maghrib: string;
-  };
+  date: string;
+  Fajr: string;
+  Maghrib: string;
 }
 
 export type MyContext = ConversationFlavor<Context>;

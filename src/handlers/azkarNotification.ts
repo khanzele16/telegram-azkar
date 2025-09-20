@@ -1,6 +1,8 @@
-import { Api, InlineKeyboard } from "grammy";
+import dotenv from "dotenv";
+import Day from "../database/models/Day";
 import User from "../database/models/User";
 import Azkar from "../database/models/Azkar";
+import { Api, InlineKeyboard } from "grammy";
 import { StreakService } from "../services/StreakService";
 import {
   postponeAzkarNotification,
@@ -8,67 +10,26 @@ import {
 } from "../cron/prayerTimesCron";
 import { Types } from "mongoose";
 import { MyContext } from "../types";
-import dotenv from "dotenv";
-import Day from "../database/models/Day";
 import { IAzkar } from "../types/models";
 
 dotenv.config({ path: "src/.env" });
 
 const api = new Api(process.env.BOT_TOKEN as string);
 
+const STATUS = {
+  PENDING: "pending",
+  READ: "read",
+  SKIPPED: "skipped",
+  POSTPONED: "postponed",
+} as const;
+
+const TYPE = {
+  MORNING: "morning",
+  EVENING: "evening",
+} as const;
+
 function prayerToType(prayer: "Fajr" | "Maghrib"): "morning" | "evening" {
-  return prayer === "Fajr" ? "morning" : "evening";
-}
-
-export async function sendAzkarNotification(
-  telegramId: number,
-  prayer: "Fajr" | "Maghrib",
-  date: string,
-  chatId?: number
-): Promise<void> {
-  const targetChatId = chatId ?? telegramId;
-  const user = await User.findOne({ telegramId });
-
-  if (!user) return;
-
-  try {
-    const type = prayerToType(prayer);
-
-    const existingDay = await Day.findOne({
-      userId: user._id,
-      date,
-      type,
-    });
-
-    if (existingDay && ["read", "skipped"].includes(existingDay.status)) {
-      console.log("❌ Уведомление уже было или день пропущен");
-      return;
-    }
-
-    const keyboard = new InlineKeyboard()
-      .text("📖 Прочитать", `azkarnotify:read:${prayer}:${date}`)
-      .text("⏰ Отложить (1 ч)", `azkarnotify:postpone:${prayer}:${date}`)
-      .row()
-      .text("❌ Сегодня не буду", `azkarnotify:skip:${prayer}:${date}`);
-
-    const ctx_message = await api.sendMessage(
-      targetChatId,
-      `🕌 Время ${prayer === "Fajr" ? "утренних" : "вечерних"} азкаров.`,
-      { reply_markup: keyboard }
-    );
-
-    await Day.updateOne(
-      { userId: user._id, date, type },
-      {
-        $set: { messageId: ctx_message.message_id },
-        $setOnInsert: { status: "pending", startedAt: new Date() },
-      },
-      { upsert: true }
-    );
-  } catch (err) {
-    console.log("sendAzkarNotification error:", err);
-    throw err;
-  }
+  return prayer === "Fajr" ? TYPE.MORNING : TYPE.EVENING;
 }
 
 const sliderStates = new Map<
@@ -83,6 +44,48 @@ const sliderStates = new Map<
   }
 >();
 
+export async function sendAzkarNotification(
+  telegramId: number,
+  prayer: "Fajr" | "Maghrib",
+  date: string,
+  chatId?: number
+): Promise<void> {
+  const targetChatId = chatId ?? telegramId;
+  const user = await User.findOne({ telegramId });
+  if (!user) return;
+
+  const type = prayerToType(prayer);
+
+  const existingDay = await Day.findOne({ userId: user._id, date, type });
+  if (
+    existingDay &&
+    (existingDay.status === "read" || existingDay.status === "skipped")
+  ) {
+    return;
+  }
+
+  const keyboard = new InlineKeyboard()
+    .text("📖 Прочитать", `azkarnotify:read:${prayer}:${date}`)
+    .text("⏰ Отложить (1 ч)", `azkarnotify:postpone:${prayer}:${date}`)
+    .row()
+    .text("❌ Сегодня не буду", `azkarnotify:skip:${prayer}:${date}`);
+
+  const ctx_message = await api.sendMessage(
+    targetChatId,
+    `🕌 Время ${prayer === "Fajr" ? "утренних" : "вечерних"} азкаров.`,
+    { reply_markup: keyboard }
+  );
+
+  await Day.updateOne(
+    { userId: user._id, date, type },
+    {
+      $set: { messageId: ctx_message.message_id },
+      $setOnInsert: { status: STATUS.PENDING, startedAt: new Date() },
+    },
+    { upsert: true }
+  );
+}
+
 async function startAzkarSlider(
   ctx: MyContext,
   userId: Types.ObjectId,
@@ -91,9 +94,7 @@ async function startAzkarSlider(
   date: string
 ) {
   const type = prayerToType(prayer);
-
   const azkar = await Azkar.find({ category: type }).lean();
-
   if (azkar.length === 0) {
     await ctx.api.sendMessage(chatId, "Нет азкаров для отображения");
     return;
@@ -105,24 +106,13 @@ async function startAzkarSlider(
   }
 
   const sliderId = `${ctx.from.id}:${Date.now()}`;
-  sliderStates.set(sliderId, {
-    index: 0,
-    date,
-    userId,
-    chatId,
-    type,
-    azkar,
-  });
+  sliderStates.set(sliderId, { index: 0, date, userId, chatId, type, azkar });
 
   const keyboard = buildSliderKeyboard(sliderId, 0, azkar.length);
-
   await ctx.api.sendMessage(
     chatId,
     formatAzkarMessage(azkar[0], 1, azkar.length),
-    {
-      reply_markup: keyboard,
-      parse_mode: "HTML",
-    }
+    { reply_markup: keyboard, parse_mode: "HTML" }
   );
 }
 
@@ -139,113 +129,106 @@ function buildSliderKeyboard(
     .text("✅ Завершить", `slider:${sliderId}:finish`);
 }
 
-function formatAzkarMessage(azkar: any, i: number, total: number): string {
+function formatAzkarMessage(azkar: IAzkar, i: number, total: number): string {
   return `<b>📖 Азкар ${i}/${total}</b>\n\n<blockquote>${azkar.text}\n\n${azkar.translation}</blockquote>\n\n<b>Транскрипция:</b> ${azkar.transcription}`;
 }
 
 export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
-  try {
-    const data = ctx.callbackQuery?.data;
-    if (!data) {
-      await ctx.answerCallbackQuery("❌ Некорректные данные");
-      return;
-    }
-
-    const [, action, prayer, date] = data.split(":");
-    const user = await User.findOne({ telegramId: ctx.from?.id });
-    if (!user) {
-      await ctx.answerCallbackQuery("❌ Пользователь не найден");
-      return;
-    }
-
-    const typeLabel = prayer === "Fajr" ? "утренних" : "вечерних";
-    const dbType = prayerToType(prayer as "Fajr" | "Maghrib");
-
-    const dayRecord = await Day.findOne({
-      userId: user._id,
-      date,
-      type: dbType,
-    });
-
-    if (action === "postpone") {
-      await postponeAzkarNotification(
-        user._id.toString(),
-        ctx.from!.id,
-        prayer as any,
-        date
-      );
-
-      await Day.updateOne(
-        { userId: user._id, date, type: dbType },
-        {
-          $set: {
-            status: "postponed",
-            postponedUntil: new Date(Date.now() + 3600_000),
-          },
-        },
-        { upsert: true }
-      );
-
-      if (dayRecord?.messageId && ctx.chat) {
-        try {
-          await ctx.api.editMessageText(
-            ctx.chat.id,
-            dayRecord.messageId,
-            `⏰ Вы отложили чтение ${typeLabel} азкаров на 1 час`
-          );
-        } catch (err) {
-          console.log("Не удалось обновить сообщение (postpone):", err);
-        }
-      }
-      await ctx.answerCallbackQuery("⏰ Отложено на 1 час");
-      return;
-    }
-
-    if (action === "skip") {
-      await cancelAzkarNotification(user._id.toString(), prayer as any, date);
-      await StreakService.markSkipped(user._id, date, dbType);
-      if (dayRecord?.messageId && ctx.chat) {
-        try {
-          await ctx.api.editMessageText(
-            ctx.chat.id,
-            dayRecord.messageId,
-            `❌ Вы сегодня пропустили чтение ${typeLabel} азкаров`
-          );
-        } catch (err) {
-          console.log("Не удалось обновить сообщение (skip):", err);
-        }
-      }
-      await ctx.answerCallbackQuery("День отмечен как пропущенный");
-      return;
-    }
-
-    if (action === "read") {
-      await Day.updateOne(
-        { userId: user._id, date, type: dbType },
-        { $set: { status: "pending", startedAt: new Date() } },
-        { upsert: true }
-      );
-
-      if (dayRecord?.messageId && ctx.chat) {
-        try {
-          await ctx.api.editMessageText(
-            ctx.chat.id,
-            dayRecord.messageId,
-            `📖 Чтение ${typeLabel} азкаров`
-          );
-        } catch (err) {
-          console.log("Не удалось обновить сообщение (read):", err);
-        }
-      }
-      await startAzkarSlider(ctx, user._id, ctx.from!.id, prayer as any, date);
-      await ctx.answerCallbackQuery();
-      return;
-    }
-    await ctx.answerCallbackQuery("❌ Неизвестное действие");
-  } catch (err) {
-    console.error("Error in handleAzkarNotifyCallback:", err);
-    throw err;
+  const data = ctx.callbackQuery?.data;
+  if (!data) {
+    await ctx.answerCallbackQuery("❌ Некорректные данные");
+    return;
   }
+
+  const [, action, prayer, date] = data.split(":");
+  if (!ctx.from) return;
+  const user = await User.findOne({ telegramId: ctx.from.id });
+  if (!user) {
+    await ctx.answerCallbackQuery("❌ Пользователь не найден");
+    return;
+  }
+
+  const typeLabel = prayer === "Fajr" ? "утренних" : "вечерних";
+  const dbType = prayerToType(prayer as "Fajr" | "Maghrib");
+  const dayRecord = await Day.findOne({ userId: user._id, date, type: dbType });
+
+  if (action === "postpone") {
+    await postponeAzkarNotification(
+      user._id.toString(),
+      ctx.from.id,
+      prayer as "Fajr" | "Maghrib",
+      date
+    );
+    await Day.updateOne(
+      { userId: user._id, date, type: dbType },
+      {
+        $set: {
+          status: STATUS.POSTPONED,
+          postponedUntil: new Date(Date.now() + 3600_000),
+        },
+      },
+      { upsert: true }
+    );
+    if (dayRecord?.messageId && ctx.chat) {
+      try {
+        await ctx.api.editMessageText(
+          ctx.chat.id,
+          dayRecord.messageId,
+          `⏰ Вы отложили чтение ${typeLabel} азкаров на 1 час`
+        );
+      } catch {}
+    }
+    await ctx.answerCallbackQuery("⏰ Отложено на 1 час");
+    return;
+  }
+
+  if (action === "skip") {
+    await cancelAzkarNotification(
+      user._id.toString(),
+      prayer as "Fajr" | "Maghrib",
+      date
+    );
+    await StreakService.markSkipped(user._id, date, dbType);
+    if (dayRecord?.messageId && ctx.chat) {
+      try {
+        await ctx.api.editMessageText(
+          ctx.chat.id,
+          dayRecord.messageId,
+          `❌ Вы сегодня пропустили чтение ${typeLabel} азкаров`
+        );
+      } catch {}
+    }
+    await ctx.answerCallbackQuery("День отмечен как пропущенный");
+    return;
+  }
+
+  if (action === "read") {
+    await Day.updateOne(
+      { userId: user._id, date, type: dbType },
+      { $set: { status: STATUS.PENDING, startedAt: new Date() } },
+      { upsert: true }
+    );
+    if (dayRecord?.messageId && ctx.chat) {
+      try {
+        await ctx.api.editMessageText(
+          ctx.chat.id,
+          dayRecord.messageId,
+          `📖 Чтение ${typeLabel} азкаров`
+        );
+      } catch {}
+    }
+    await startAzkarSlider(
+      ctx,
+      user._id,
+      ctx.from.id,
+      prayer as "Fajr" | "Maghrib",
+      date
+    );
+    await ctx.answerCallbackQuery();
+    return;
+  }
+
+  await ctx.answerCallbackQuery("❌ Неизвестное действие");
 }
 
 export async function handleSliderCallback(ctx: MyContext): Promise<void> {
@@ -258,7 +241,6 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
   const parts = data.split(":");
   const action = parts.pop();
   const sliderId = parts.slice(1).join(":");
-
   const state = sliderStates.get(sliderId);
 
   if (!state) {
@@ -279,14 +261,10 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
     try {
       await Day.updateOne(
         { userId: state.userId, date: state.date, type: state.type },
-        { $set: { status: "read", finishedAt: new Date() } }
+        { $set: { status: STATUS.READ, finishedAt: new Date() } }
       );
       await ctx.editMessageText("🎉 Вы прочитали сегодня азкары, поздравляем!");
-    } catch (err) {
-      console.log(
-        "Не удалось обновить сообщение при завершении слайдера:",
-        err
-      );
+    } catch {
       await ctx.answerCallbackQuery("Слайдер устарел");
       return;
     }
@@ -308,8 +286,7 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
       reply_markup: kb,
       parse_mode: "HTML",
     });
-  } catch (error) {
-    console.log("Error editing message:", error);
+  } catch {
     await ctx.answerCallbackQuery("❌ Ошибка обновления сообщения");
   }
 }

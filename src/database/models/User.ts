@@ -9,10 +9,13 @@ const User = new Schema<IUser>(
       latitude: String,
       longitude: String,
     },
-    timings: {
-      FajrUTC: String,
-      MaghribUTC: String,
-    },
+    timings: [
+      {
+        date: { type: String, required: true },
+        FajrUTC: { type: String, required: true },
+        MaghribUTC: { type: String, required: true },
+      },
+    ],
     currentStreak: {
       value: { type: Number, default: 0 },
       lastUpdated: Date,

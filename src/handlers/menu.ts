@@ -34,11 +34,21 @@ export const adminMenuButtons = new Menu<MyContext>("admin-menu")
   .text("👤 Статистика", async (ctx) => {
     await ctx.answerCallbackQuery("👤 Статистика");
     ctx.menu.close();
-    const blockedUsers = await User.find({ blocked: false }).countDocuments();
-    console.log(blockedUsers);
-    return;
+    const users = await User.countDocuments({});
+    const notifyUsers = await User.countDocuments({
+      blocked: false,
+      "timings.FajrUTC": { $exists: true, $ne: null },
+      "timings.MaghribUTC": { $exists: true, $ne: null },
+    });
+    const blockedUsers = await User.countDocuments({ blocked: true });
+    await ctx.reply(
+      `<b>👤 Статистика:</b>\n\n👥 Количество пользователей: ${users}\n🔔 Количество пользователей, которым приходят азкары: ${notifyUsers}\n🚫 Количество пользователей, которые заблокировали бот: ${blockedUsers}`,
+      { parse_mode: "HTML" }
+    );
   })
+  .row()
   .text("📥 Рассылка", async (ctx) => {
     await ctx.answerCallbackQuery("📥 Рассылка");
     ctx.menu.close();
+    await ctx.conversation.enter('broadcastConversation');
   });

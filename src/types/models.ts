@@ -9,8 +9,17 @@ export interface IUser {
     longitude: string;
   };
   timings?: {
+    date: string;
     FajrUTC: string;
     MaghribUTC: string;
+  }[];
+  localTimings?: {
+    Fajr: string;
+    Maghrib: string;
+  };
+  date?: {
+    readable: string;
+    timestamp: number;
   };
   currentStreak: {
     value: number;

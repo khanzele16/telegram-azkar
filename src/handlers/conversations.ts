@@ -1,4 +1,5 @@
 import User from "../database/models/User";
+import Day from "../database/models/Day";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import dayjs from "dayjs";
@@ -6,11 +7,13 @@ import {
   locationKeyboard,
   MailingKeyboard,
   startKeyboard,
+  toAdminKeyboard,
 } from "../shared/keyboards";
 import { getPrayTime } from "../shared/requests";
 import { IPrayTime, MyConversation, MyConversationContext } from "../types";
-// import { updatePrayerTimesAndSchedule } from "../cron/prayerTimesCron";
-import { adminMenuButtons } from "./menu";
+import { updatePrayerTimesAndSchedule } from "../cron/prayerTimesCron";
+import { menu } from "./commands";
+import { menuButtons } from "./menu";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -79,7 +82,6 @@ export const locationConversation = async (
       return;
     }
 
-    // Формируем массив для вставки в timings
     const timingsToAdd = prayTimes.map((pt) => {
       const fajrUTC = dayjs(`${pt.date} ${pt.Fajr}`, "DD-MM-YYYY HH:mm")
         .utc()
@@ -95,7 +97,6 @@ export const locationConversation = async (
       };
     });
 
-    // Обновляем пользователя: добавляем все timings за месяц
     await User.findOneAndUpdate(
       { telegramId: ctx.from?.id },
       {
@@ -112,7 +113,6 @@ export const locationConversation = async (
 
     const user = await User.findOne({ telegramId: ctx.from?.id });
 
-    // Создаем/обновляем Day документы для всех дней месяца
     for (const timing of timingsToAdd) {
       const existingDay = await Day.findOne({
         userId: user!._id,
@@ -138,19 +138,45 @@ export const locationConversation = async (
       }
     }
 
-    // Находим сегодняшние молитвы
     const today = dayjs().format("DD-MM-YYYY");
     const todayPrayTime =
       prayTimes.find((p) => p.date === today) || prayTimes[0];
 
-    await ctx.reply(
-      `<b>🌞 Ваши напоминания на месяц настроены</b>\n` +
-        `🌅 Фаджр сегодня — ${todayPrayTime.Fajr}\n` +
-        `🌃 Магриб сегодня — ${todayPrayTime.Maghrib}\n\n` +
-        "✅ Утренние и вечерние азкары будут приходить автоматически.\n" +
-        "🏠 Можете перейти в <b>главное меню с помощью /menu.</b>",
-      { parse_mode: "HTML" }
+    await updatePrayerTimesAndSchedule();
+
+    const ctx_message = await ctx.reply(
+      `<b>🌞 Ваше местное время намаза на ${dayjs(
+        todayPrayTime.date
+      ).format("D MMMM YYYY")}</b>\n` +
+        `🌅 Фаджр — ${todayPrayTime.Fajr}\n` +
+        `🌃 Магриб — ${todayPrayTime.Maghrib}\n\n` +
+        "✅ Ваш аккаунт настроен, уведомления будут приходить автоматически.",
+      { parse_mode: "HTML", reply_markup: toAdminKeyboard }
     );
+
+    const { callbackQuery, message } = await conversation.waitFor([
+      "callback_query",
+      "message",
+    ]);
+
+    if (callbackQuery) {
+      if (callbackQuery.data === "menu") {
+        await ctx.api.answerCallbackQuery(callbackQuery.id, {
+          text: "📌 Главное меню",
+        });
+        await ctx.api.deleteMessage(ctx.chat!.id, ctx_message.message_id);
+        await ctx.reply("📌 Главное меню\n\nВыберите действие:", {
+          reply_markup: menuButtons,
+          parse_mode: "HTML",
+        });
+        return;
+      }
+    }
+
+    if (message) {
+      await ctx.reply("Пожалуйста, используйте кнопку '🏠 К главному меню' для перехода в меню.");
+      return;
+    }
   } catch (err) {
     console.error("Ошибка в locationConversation:", err);
     await ctx.reply(

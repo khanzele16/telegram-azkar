@@ -13,10 +13,6 @@ export interface IUser {
     FajrUTC: string;
     MaghribUTC: string;
   }[];
-  localTimings?: {
-    Fajr: string;
-    Maghrib: string;
-  };
   date?: {
     readable: string;
     timestamp: number;

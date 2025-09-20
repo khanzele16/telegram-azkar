@@ -16,10 +16,6 @@ const User = new Schema<IUser>(
         MaghribUTC: { type: String, required: true },
       },
     ],
-    localTimings: {
-      Fajr: String,
-      Maghrib: String,
-    },
     date: {
       readable: String,
       timestamp: Number,

@@ -68,12 +68,13 @@ export const locationConversation = async (
   const { latitude, longitude } = message.location;
 
   try {
-    const month = dayjs().month() + 1; // текущий месяц (1-12)
+    const month = dayjs().month() + 1;
     const prayTimes: IPrayTime[] | null = await getPrayTime(
       latitude.toString(),
       longitude.toString(),
       month
     );
+    console.log(month, prayTimes);
 
     if (!prayTimes || prayTimes.length === 0) {
       await ctx.reply(
@@ -82,12 +83,16 @@ export const locationConversation = async (
       return;
     }
 
-    // Формируем массив timings
     const timingsToAdd = prayTimes.map((pt) => {
-      const fajrUTC = dayjs(`${pt.date} ${pt.Fajr}`, "DD-MM-YYYY HH:mm")
+      console.log("DEBUG:", pt.date, pt.Fajr);
+      const fajrUTC = dayjs(`${pt.date} ${pt.Fajr}`, "DD-MM-YYYY HH:mm", true)
         .utc()
         .toISOString();
-      const maghribUTC = dayjs(`${pt.date} ${pt.Maghrib}`, "DD-MM-YYYY HH:mm")
+      const maghribUTC = dayjs(
+        `${pt.date} ${pt.Maghrib}`,
+        "DD-MM-YYYY HH:mm",
+        true
+      )
         .utc()
         .toISOString();
 
@@ -97,8 +102,8 @@ export const locationConversation = async (
         MaghribUTC: maghribUTC,
       };
     });
+    console.log(timingsToAdd);
 
-    // Сохраняем в User (обновляем полностью массив timings)
     const user = await User.findOneAndUpdate(
       { telegramId: ctx.from?.id },
       {
@@ -111,7 +116,6 @@ export const locationConversation = async (
       { upsert: true, new: true }
     );
 
-    // Создаем Day документы (если их еще нет)
     for (const timing of timingsToAdd) {
       const existingDay = await Day.findOne({
         userId: user!._id,
@@ -138,7 +142,6 @@ export const locationConversation = async (
       }
     }
 
-    // Берем сегодняшнее время намаза
     const today = dayjs().format("DD-MM-YYYY");
     const todayPrayTime =
       prayTimes.find((p) => p.date === today) || prayTimes[0];

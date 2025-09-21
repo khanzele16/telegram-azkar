@@ -79,12 +79,28 @@ export async function updatePrayerTimesAndSchedule(
     if (!prayTimes) continue;
 
     const timingsToAdd = prayTimes.map((pt) => {
-      const fajrUTC = dayjs(`${pt.date} ${pt.Fajr}`, "DD-MM-YYYY HH:mm")
-        .utc()
-        .toISOString();
-      const maghribUTC = dayjs(`${pt.date} ${pt.Maghrib}`, "DD-MM-YYYY HH:mm")
-        .utc()
-        .toISOString();
+      // Преобразуем дату из DD-MM-YYYY в YYYY-MM-DD для корректного парсинга
+      const [day, month, year] = pt.date.split("-");
+      const formattedDate = `${year}-${month}-${day}`;
+      
+      const fajrDayjs = dayjs(`${formattedDate} ${pt.Fajr}`, "YYYY-MM-DD HH:mm", true);
+      const maghribDayjs = dayjs(`${formattedDate} ${pt.Maghrib}`, "YYYY-MM-DD HH:mm", true);
+      
+      // Проверяем, что даты валидны
+      if (!fajrDayjs.isValid() || !maghribDayjs.isValid()) {
+        console.error("Invalid date parsing in cron:", {
+          date: pt.date,
+          fajr: pt.Fajr,
+          maghrib: pt.Maghrib,
+          formattedDate,
+          fajrValid: fajrDayjs.isValid(),
+          maghribValid: maghribDayjs.isValid()
+        });
+        throw new Error(`Invalid date format: ${pt.date}`);
+      }
+      
+      const fajrUTC = fajrDayjs.utc().toISOString();
+      const maghribUTC = maghribDayjs.utc().toISOString();
 
       return {
         date: pt.date,

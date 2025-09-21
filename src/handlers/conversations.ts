@@ -7,13 +7,12 @@ import {
   locationKeyboard,
   MailingKeyboard,
   startKeyboard,
-  toAdminKeyboard,
 } from "../shared/keyboards";
 import { getPrayTime } from "../shared/requests";
 import { IPrayTime, MyConversation, MyConversationContext } from "../types";
-import { updatePrayerTimesAndSchedule } from "../cron/prayerTimesCron";
-import { menu } from "./commands";
-import { menuButtons } from "./menu";
+import {
+  updatePrayerTimesAndSchedule,
+} from "../cron/prayerTimesCron";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -74,7 +73,6 @@ export const locationConversation = async (
       longitude.toString(),
       month
     );
-    console.log(month, prayTimes);
 
     if (!prayTimes || prayTimes.length === 0) {
       await ctx.reply(
@@ -85,15 +83,21 @@ export const locationConversation = async (
 
     const timingsToAdd = prayTimes.map((pt) => {
       console.log("DEBUG:", pt.date, pt.Fajr);
-      
-      // Преобразуем дату из DD-MM-YYYY в YYYY-MM-DD для корректного парсинга
-      const [day, month, year] = pt.date.split("-");
-      const formattedDate = `${year}-${month}-${day}`;
-      
-      const fajrDayjs = dayjs(`${formattedDate} ${pt.Fajr}`, "YYYY-MM-DD HH:mm", true);
-      const maghribDayjs = dayjs(`${formattedDate} ${pt.Maghrib}`, "YYYY-MM-DD HH:mm", true);
-      
-      // Проверяем, что даты валидны
+
+      const [day, mm, year] = pt.date.split("-");
+      const formattedDate = `${year}-${mm}-${day}`;
+
+      const fajrDayjs = dayjs(
+        `${formattedDate} ${pt.Fajr}`,
+        "YYYY-MM-DD HH:mm",
+        true
+      );
+      const maghribDayjs = dayjs(
+        `${formattedDate} ${pt.Maghrib}`,
+        "YYYY-MM-DD HH:mm",
+        true
+      );
+
       if (!fajrDayjs.isValid() || !maghribDayjs.isValid()) {
         console.error("Invalid date parsing:", {
           date: pt.date,
@@ -101,11 +105,11 @@ export const locationConversation = async (
           maghrib: pt.Maghrib,
           formattedDate,
           fajrValid: fajrDayjs.isValid(),
-          maghribValid: maghribDayjs.isValid()
+          maghribValid: maghribDayjs.isValid(),
         });
         throw new Error(`Invalid date format: ${pt.date}`);
       }
-      
+
       const fajrUTC = fajrDayjs.utc().toISOString();
       const maghribUTC = maghribDayjs.utc().toISOString();
 
@@ -115,7 +119,6 @@ export const locationConversation = async (
         MaghribUTC: maghribUTC,
       };
     });
-    console.log(timingsToAdd);
 
     const user = await User.findOneAndUpdate(
       { telegramId: ctx.from?.id },
@@ -130,29 +133,37 @@ export const locationConversation = async (
     );
 
     for (const timing of timingsToAdd) {
-      const existingDay = await Day.findOne({
+      const existingMorning = await Day.findOne({
         userId: user!._id,
         date: timing.date,
+        type: "morning",
+      });
+      const existingEvening = await Day.findOne({
+        userId: user!._id,
+        date: timing.date,
+        type: "evening",
       });
 
-      if (!existingDay) {
-        await Day.create([
-          {
-            userId: user!._id,
-            date: timing.date,
-            type: "morning",
-            utcTime: timing.FajrUTC,
-            status: "pending",
-          },
-          {
-            userId: user!._id,
-            date: timing.date,
-            type: "evening",
-            utcTime: timing.MaghribUTC,
-            status: "pending",
-          },
-        ]);
+      if (!existingMorning) {
+        await Day.create({
+          userId: user!._id,
+          date: timing.date,
+          type: "morning",
+          utcTime: timing.FajrUTC,
+          status: "pending",
+        });
       }
+
+      if (!existingEvening) {
+        await Day.create({
+          userId: user!._id,
+          date: timing.date,
+          type: "evening",
+          utcTime: timing.MaghribUTC,
+          status: "pending",
+        });
+      }
+      updatePrayerTimesAndSchedule(ctx.from?.id);
     }
 
     const today = dayjs().format("DD-MM-YYYY");
@@ -172,7 +183,7 @@ export const locationConversation = async (
     console.error("Ошибка в locationConversation:", err);
     await ctx.reply(
       "❌ Ошибка при получении времени намаза. Попробуйте снова.\n\n" +
-      "Если ошибка повторяется, обратитесь к администратору."
+        "Если ошибка повторяется, обратитесь к администратору."
     );
   }
 };

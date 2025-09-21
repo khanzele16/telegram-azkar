@@ -79,14 +79,12 @@ export async function updatePrayerTimesAndSchedule(
     if (!prayTimes) continue;
 
     const timingsToAdd = prayTimes.map((pt) => {
-      // Преобразуем дату из DD-MM-YYYY в YYYY-MM-DD для корректного парсинга
       const [day, month, year] = pt.date.split("-");
       const formattedDate = `${year}-${month}-${day}`;
       
       const fajrDayjs = dayjs(`${formattedDate} ${pt.Fajr}`, "YYYY-MM-DD HH:mm", true);
       const maghribDayjs = dayjs(`${formattedDate} ${pt.Maghrib}`, "YYYY-MM-DD HH:mm", true);
       
-      // Проверяем, что даты валидны
       if (!fajrDayjs.isValid() || !maghribDayjs.isValid()) {
         console.error("Invalid date parsing in cron:", {
           date: pt.date,
@@ -116,7 +114,6 @@ export async function updatePrayerTimesAndSchedule(
       );
     }
 
-    // Создаём/обновляем документы Day
     for (const timing of timingsToAdd) {
       const existingDayMorning = await Day.findOne({
         userId,

@@ -11,7 +11,10 @@ import {
 import { getPrayTime } from "../shared/requests";
 import { IPrayTime, MyConversation, MyConversationContext } from "../types";
 import Azkar from "../database/models/Azkar";
-import { azkarQueue, updatePrayerTimesAndSchedule } from "../cron/prayerTimesCron";
+import {
+  azkarQueue,
+  updatePrayerTimesAndSchedule,
+} from "../cron/prayerTimesCron";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -118,54 +121,54 @@ export const locationConversation = async (
         "active",
         "paused",
       ]);
-      // for (const job of jobs) {
-      //   if (job.data.userId.toString() === user._id.toString()) {
-      //     await job.remove();
-      //   }
-      // }
+      for (const job of jobs) {
+        if (job.data.userId.toString() === user._id.toString()) {
+          await job.remove();
+        }
+      }
     }
 
-    // user = await User.findOneAndUpdate(
-    //   { telegramId: ctx.from?.id },
-    //   {
-    //     $set: {
-    //       "location.latitude": latitude.toString(),
-    //       "location.longitude": longitude.toString(),
-    //       timings: timingsToAdd,
-    //     },
-    //   },
-    //   { upsert: true, new: true }
-    // );
+    user = await User.findOneAndUpdate(
+      { telegramId: ctx.from?.id },
+      {
+        $set: {
+          "location.latitude": latitude.toString(),
+          "location.longitude": longitude.toString(),
+          timings: timingsToAdd,
+        },
+      },
+      { upsert: true, new: true }
+    );
 
-    // for (const timing of timingsToAdd) {
-    //   const morning = await Day.create({
-    //     userId: user!._id,
-    //     date: timing.date,
-    //     type: "morning",
-    //     utcTime: timing.FajrUTC,
-    //     status: "pending",
-    //   });
-    //   const evening = await Day.create({
-    //     userId: user!._id,
-    //     date: timing.date,
-    //     type: "evening",
-    //     utcTime: timing.MaghribUTC,
-    //     status: "pending",
-    //   });
-    // }
+    for (const timing of timingsToAdd) {
+      await Day.create({
+        userId: user!._id,
+        date: timing.date,
+        type: "morning",
+        utcTime: timing.FajrUTC,
+        status: "pending",
+      });
+      await Day.create({
+        userId: user!._id,
+        date: timing.date,
+        type: "evening",
+        utcTime: timing.MaghribUTC,
+        status: "pending",
+      });
+    }
 
-    // const todayPrayTime =
-    //   prayTimes.find((p) => p.date === today) || prayTimes[0];
+    const todayPrayTime =
+      prayTimes.find((p) => p.date === today) || prayTimes[0];
 
-    // await ctx.reply(
-    //   `<b>🌞 Ваши напоминания на месяц обновлены</b>\n\n` +
-    //     `<b>Сегодня (${dayjs().format("D MMMM YYYY")})</b>:\n` +
-    //     `🌅 Фаджр — ${todayPrayTime.Fajr}\n` +
-    //     `🌃 Магриб — ${todayPrayTime.Maghrib}\n\n` +
-    //     "✅ Уведомления будут приходить автоматически.\n" +
-    //     "🏠 Можете перейти в <b>главное меню</b> с помощью /menu.",
-    //   { parse_mode: "HTML" }
-    // );
+    await ctx.reply(
+      `<b>🌞 Ваши напоминания на месяц обновлены</b>\n\n` +
+        `<b>Сегодня (${dayjs().format("D MMMM YYYY")})</b>:\n` +
+        `🌅 Фаджр — ${todayPrayTime.Fajr}\n` +
+        `🌃 Магриб — ${todayPrayTime.Maghrib}\n\n` +
+        "✅ Уведомления будут приходить автоматически.\n" +
+        "🏠 Можете перейти в <b>главное меню</b> с помощью /menu.",
+      { parse_mode: "HTML" }
+    );
   } catch (err) {
     console.error("Ошибка в locationConversation:", err);
     await ctx.reply(

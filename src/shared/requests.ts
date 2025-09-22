@@ -8,6 +8,7 @@ axiosRetry(axios, {
   retryDelay: axiosRetry.exponentialDelay,
   retryCondition: (error) => {
     return (
+      console.log(error),
       axiosRetry.isNetworkError(error) ||
       axiosRetry.isRetryableError(error) ||
       (error.response?.status ?? 500) >= 500

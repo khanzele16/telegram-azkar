@@ -10,9 +10,8 @@ import {
 } from "../shared/keyboards";
 import { getPrayTime } from "../shared/requests";
 import { IPrayTime, MyConversation, MyConversationContext } from "../types";
-import {
-  updatePrayerTimesAndSchedule,
-} from "../cron/prayerTimesCron";
+import Azkar from "../database/models/Azkar";
+import { azkarQueue, updatePrayerTimesAndSchedule } from "../cron/prayerTimesCron";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -73,6 +72,7 @@ export const locationConversation = async (
       longitude.toString(),
       month
     );
+    const today = dayjs().format("DD-MM-YYYY");
 
     if (!prayTimes || prayTimes.length === 0) {
       await ctx.reply(
@@ -82,11 +82,8 @@ export const locationConversation = async (
     }
 
     const timingsToAdd = prayTimes.map((pt) => {
-      console.log("DEBUG:", pt.date, pt.Fajr);
-
       const [day, mm, year] = pt.date.split("-");
       const formattedDate = `${year}-${mm}-${day}`;
-
       const fajrDayjs = dayjs(
         `${formattedDate} ${pt.Fajr}`,
         "YYYY-MM-DD HH:mm",
@@ -97,22 +94,8 @@ export const locationConversation = async (
         "YYYY-MM-DD HH:mm",
         true
       );
-
-      if (!fajrDayjs.isValid() || !maghribDayjs.isValid()) {
-        console.error("Invalid date parsing:", {
-          date: pt.date,
-          fajr: pt.Fajr,
-          maghrib: pt.Maghrib,
-          formattedDate,
-          fajrValid: fajrDayjs.isValid(),
-          maghribValid: maghribDayjs.isValid(),
-        });
-        throw new Error(`Invalid date format: ${pt.date}`);
-      }
-
       const fajrUTC = fajrDayjs.utc().toISOString();
       const maghribUTC = maghribDayjs.utc().toISOString();
-
       return {
         date: pt.date,
         FajrUTC: fajrUTC,
@@ -120,65 +103,69 @@ export const locationConversation = async (
       };
     });
 
-    const user = await User.findOneAndUpdate(
-      { telegramId: ctx.from?.id },
-      {
-        $set: {
-          "location.latitude": latitude.toString(),
-          "location.longitude": longitude.toString(),
-          timings: timingsToAdd,
-        },
-      },
-      { upsert: true, new: true }
-    );
+    let user = await User.findOne({ telegramId: ctx.from?.id });
 
-    for (const timing of timingsToAdd) {
-      const existingMorning = await Day.findOne({
-        userId: user!._id,
-        date: timing.date,
-        type: "morning",
-      });
-      const existingEvening = await Day.findOne({
-        userId: user!._id,
-        date: timing.date,
-        type: "evening",
+    if (user) {
+      await Day.deleteMany({
+        userId: user._id,
+        status: "pending",
+        date: { $gt: today },
       });
 
-      if (!existingMorning) {
-        await Day.create({
-          userId: user!._id,
-          date: timing.date,
-          type: "morning",
-          utcTime: timing.FajrUTC,
-          status: "pending",
-        });
-      }
-
-      if (!existingEvening) {
-        await Day.create({
-          userId: user!._id,
-          date: timing.date,
-          type: "evening",
-          utcTime: timing.MaghribUTC,
-          status: "pending",
-        });
-      }
-      updatePrayerTimesAndSchedule(ctx.from?.id);
+      const jobs = await azkarQueue.getJobs([
+        "delayed",
+        "waiting",
+        "active",
+        "paused",
+      ]);
+      // for (const job of jobs) {
+      //   if (job.data.userId.toString() === user._id.toString()) {
+      //     await job.remove();
+      //   }
+      // }
     }
 
-    const today = dayjs().format("DD-MM-YYYY");
-    const todayPrayTime =
-      prayTimes.find((p) => p.date === today) || prayTimes[0];
+    // user = await User.findOneAndUpdate(
+    //   { telegramId: ctx.from?.id },
+    //   {
+    //     $set: {
+    //       "location.latitude": latitude.toString(),
+    //       "location.longitude": longitude.toString(),
+    //       timings: timingsToAdd,
+    //     },
+    //   },
+    //   { upsert: true, new: true }
+    // );
 
-    await ctx.reply(
-      `<b>🌞 Ваши напоминания на месяц настроены</b>\n\n` +
-        `<b>Сегодня (${dayjs().format("D MMMM YYYY")})</b>:\n` +
-        `🌅 Фаджр — ${todayPrayTime.Fajr}\n` +
-        `🌃 Магриб — ${todayPrayTime.Maghrib}\n\n` +
-        "✅ Уведомления будут приходить автоматически.\n" +
-        "🏠 Можете перейти в <b>главное меню</b> с помощью /menu.",
-      { parse_mode: "HTML" }
-    );
+    // for (const timing of timingsToAdd) {
+    //   const morning = await Day.create({
+    //     userId: user!._id,
+    //     date: timing.date,
+    //     type: "morning",
+    //     utcTime: timing.FajrUTC,
+    //     status: "pending",
+    //   });
+    //   const evening = await Day.create({
+    //     userId: user!._id,
+    //     date: timing.date,
+    //     type: "evening",
+    //     utcTime: timing.MaghribUTC,
+    //     status: "pending",
+    //   });
+    // }
+
+    // const todayPrayTime =
+    //   prayTimes.find((p) => p.date === today) || prayTimes[0];
+
+    // await ctx.reply(
+    //   `<b>🌞 Ваши напоминания на месяц обновлены</b>\n\n` +
+    //     `<b>Сегодня (${dayjs().format("D MMMM YYYY")})</b>:\n` +
+    //     `🌅 Фаджр — ${todayPrayTime.Fajr}\n` +
+    //     `🌃 Магриб — ${todayPrayTime.Maghrib}\n\n` +
+    //     "✅ Уведомления будут приходить автоматически.\n" +
+    //     "🏠 Можете перейти в <b>главное меню</b> с помощью /menu.",
+    //   { parse_mode: "HTML" }
+    // );
   } catch (err) {
     console.error("Ошибка в locationConversation:", err);
     await ctx.reply(
@@ -194,7 +181,7 @@ export async function broadcastConversation(
 ) {
   await ctx.reply("✏️ Введите текст для рассылки:");
   const { message } = await conversation.waitFor(":text");
-  const text = message?.text;
+  const text = message;
   if (!text) {
     await ctx.reply("❌ Нужно ввести текст");
     return await broadcastConversation(conversation, ctx);
@@ -210,14 +197,19 @@ export async function broadcastConversation(
   try {
     if (photo) {
       await ctx.replyWithPhoto(photo, {
-        caption: `<b>📢 Предпросмотр сообщения рассылки:</b>\n\n${text}\n\nНачать рассылку?`,
+        caption: `<b>📢 Предпросмотр сообщения рассылки:</b>\n\n${text.text}\n\nНачать рассылку?`,
         parse_mode: "HTML",
+        caption_entities: text.entities,
         reply_markup: MailingKeyboard,
       });
     } else {
       await ctx.reply(
-        `<b>📢 Предпросмотр сообщения рассылки:</b>\n\n${text}\n\nНачать рассылку?`,
-        { reply_markup: MailingKeyboard, parse_mode: "HTML" }
+        `<b>📢 Предпросмотр сообщения рассылки:</b>\n\n${text.text}\n\nНачать рассылку?`,
+        {
+          reply_markup: MailingKeyboard,
+          entities: text.entities,
+          parse_mode: "HTML",
+        }
       );
     }
   } catch (err) {
@@ -250,10 +242,11 @@ export async function broadcastConversation(
       if (photo) {
         await ctx.api.sendPhoto(user.telegramId, photo, {
           parse_mode: "HTML",
-          caption: text,
+          caption_entities: text.entities,
+          caption: text.text,
         });
       } else {
-        await ctx.api.sendMessage(user.telegramId, text, {
+        await ctx.api.sendMessage(user.telegramId, text.text, {
           parse_mode: "HTML",
         });
       }

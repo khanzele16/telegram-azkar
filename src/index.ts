@@ -58,17 +58,25 @@ commands.forEach((command) => {
 });
 
 bot.chatType("private").on("my_chat_member", async (ctx) => {
-  const status = ctx.myChatMember?.new_chat_member?.status;
-  const userId = ctx.from?.id;
+  try {
+    const status = ctx.myChatMember?.new_chat_member?.status;
+    const userId = ctx.from?.id;
 
-  if (!userId) return;
+    if (!userId) return;
 
-  if (status === "kicked") {
-    console.log(`🚫 User ${userId} blocked the bot`);
-    await User.updateOne({ telegramId: userId }, { $set: { blocked: true } });
-  } else if (status === "member") {
-    console.log(`✅ User ${userId} unblocked the bot`);
-    await User.updateOne({ telegramId: userId }, { $set: { blocked: false } });
+    if (status === "kicked") {
+      console.log(`🚫 User ${userId} blocked the bot`);
+      await User.updateOne({ telegramId: userId }, { $set: { blocked: true } });
+    } else if (status === "member") {
+      console.log(`✅ User ${userId} unblocked the bot`);
+      await User.updateOne(
+        { telegramId: userId },
+        { $set: { blocked: false } }
+      );
+    }
+  } catch (err) {
+    console.log("Ошибка в my_chat_member", err);
+    throw err;
   }
 });
 

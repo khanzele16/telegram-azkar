@@ -26,21 +26,6 @@ export const getPrayTime = async (
       `https://api.aladhan.com/v1/calendar?month=${month}&latitude=${latitude}&longitude=${longitude}&method=2`
     );
     const today = dayjs();
-    console.log(
-      data.data
-        .map((item) => {
-          return {
-            date: item.date.gregorian.date,
-            Fajr: item.timings.Fajr.replace(/\s*\(.*?\)\s*/g, ""),
-            Maghrib: item.timings.Maghrib.replace(/\s*\(.*?\)\s*/g, ""),
-          };
-        })
-        .filter((item) => {
-          const [day, month, year] = item.date.split("-");
-          const itemDay = dayjs(`${year}-${month}-${day}`);
-          return itemDay.isSame(today, "day") || itemDay.isAfter(today, "day");
-        })
-    );
     return data.data
       .map((item) => {
         return {

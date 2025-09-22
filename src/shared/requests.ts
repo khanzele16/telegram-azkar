@@ -40,6 +40,6 @@ export const getPrayTime = async (
       });
   } catch (err) {
     console.error("⚠️ Ошибка получения времени молитв:", err);
-    return null;
+    throw err;
   }
 };

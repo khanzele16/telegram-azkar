@@ -3,17 +3,17 @@ import axios from "axios";
 import axiosRetry from "axios-retry";
 import { IPrayTime, IPrayTimeResponse } from "../types";
 
-axiosRetry(axios, {
-  retries: 3,
-  retryDelay: axiosRetry.exponentialDelay,
-  retryCondition: (error) => {
-    return (
-      axiosRetry.isNetworkError(error) ||
-      axiosRetry.isRetryableError(error) ||
-      (error.response?.status ?? 500) >= 500
-    );
-  },
-});
+// axiosRetry(axios, {
+//   retries: 3,
+//   retryDelay: axiosRetry.exponentialDelay,
+//   retryCondition: (error) => {
+//     return (
+//       axiosRetry.isNetworkError(error) ||
+//       axiosRetry.isRetryableError(error) ||
+//       (error.response?.status ?? 500) >= 500
+//     );
+//   },
+// });
 
 export const getPrayTime = async (
   latitude: string,

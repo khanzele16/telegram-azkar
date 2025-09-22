@@ -112,7 +112,7 @@ export const locationConversation = async (
       await Day.deleteMany({
         userId: user._id,
         status: "pending",
-        date: { $gte: today },
+        utcTime: { $gt: dayjs().utc().toISOString() },
       });
 
       const jobs = await azkarQueue.getJobs([

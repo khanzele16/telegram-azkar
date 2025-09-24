@@ -92,12 +92,12 @@ export const locationConversation = async (
         `${formattedDate} ${pt.Fajr}`,
         "YYYY-MM-DD HH:mm",
         true
-      ).tz(pt.timezone);
+      ).tz(pt.timezone, true);
       const maghribDayjs = dayjs(
         `${formattedDate} ${pt.Maghrib}`,
         "YYYY-MM-DD HH:mm",
         true
-      ).tz(pt.timezone);
+      ).tz(pt.timezone, true);
       const fajrUTC = fajrDayjs.utc().toISOString();
       const maghribUTC = maghribDayjs.utc().toISOString();
       return {
@@ -143,8 +143,8 @@ export const locationConversation = async (
     );
 
     for (const timing of timingsToAdd) {
-      const fajrTime = dayjs(timing.FajrUTC).tz(timing.timezone);
-      const maghribTime = dayjs(timing.MaghribUTC).tz(timing.timezone);
+      const fajrTime = dayjs(timing.FajrUTC).tz(timing.timezone, true);
+      const maghribTime = dayjs(timing.MaghribUTC).tz(timing.timezone, true);
       if (fajrTime.isAfter(nowUTC)) {
         await Day.create({
           userId: user!._id,

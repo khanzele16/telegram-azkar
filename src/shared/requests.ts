@@ -10,8 +10,8 @@ axiosRetry(axios, {
     return (
       console.log(error),
       axiosRetry.isNetworkError(error) ||
-      axiosRetry.isRetryableError(error) ||
-      (error.response?.status ?? 500) >= 500
+        axiosRetry.isRetryableError(error) ||
+        (error.response?.status ?? 500) >= 500
     );
   },
 });
@@ -29,6 +29,7 @@ export const getPrayTime = async (
     return data.data
       .map((item) => {
         return {
+          timezone: item.meta.timezone,
           date: item.date.gregorian.date,
           Fajr: item.timings.Fajr.replace(/\s*\(.*?\)\s*/g, ""),
           Maghrib: item.timings.Maghrib.replace(/\s*\(.*?\)\s*/g, ""),

@@ -75,6 +75,7 @@ export const locationConversation = async (
       longitude.toString(),
       month
     );
+    const nowUTC = dayjs().utc();
     const today = dayjs().format("DD-MM-YYYY");
 
     if (!prayTimes || prayTimes.length === 0) {
@@ -100,6 +101,7 @@ export const locationConversation = async (
       const fajrUTC = fajrDayjs.utc().toISOString();
       const maghribUTC = maghribDayjs.utc().toISOString();
       return {
+        timezone: pt.timezone,
         date: pt.date,
         FajrUTC: fajrUTC,
         MaghribUTC: maghribUTC,
@@ -141,20 +143,26 @@ export const locationConversation = async (
     );
 
     for (const timing of timingsToAdd) {
-      await Day.create({
-        userId: user!._id,
-        date: timing.date,
-        type: "morning",
-        utcTime: timing.FajrUTC,
-        status: "pending",
-      });
-      await Day.create({
-        userId: user!._id,
-        date: timing.date,
-        type: "evening",
-        utcTime: timing.MaghribUTC,
-        status: "pending",
-      });
+      const fajrTime = dayjs(timing.FajrUTC);
+      const maghribTime = dayjs(timing.MaghribUTC);
+      if (fajrTime.isAfter(nowUTC)) {
+        await Day.create({
+          userId: user!._id,
+          date: timing.date,
+          type: "morning",
+          utcTime: timing.FajrUTC,
+          status: "pending",
+        });
+      }
+      if (maghribTime.isAfter(nowUTC)) {
+        await Day.create({
+          userId: user!._id,
+          date: timing.date,
+          type: "evening",
+          utcTime: timing.MaghribUTC,
+          status: "pending",
+        });
+      }
     }
 
     const todayPrayTime =

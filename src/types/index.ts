@@ -13,6 +13,9 @@ export interface ICommand extends BotCommand {
 export interface IPrayTimeResponse {
   data: [
     {
+      meta: {
+        timezone: string;
+      };
       date: {
         gregorian: {
           date: string;
@@ -27,6 +30,7 @@ export interface IPrayTimeResponse {
 }
 
 export interface IPrayTime {
+  timezone: string;
   date: string;
   Fajr: string;
   Maghrib: string;

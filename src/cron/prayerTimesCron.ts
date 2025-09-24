@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
 import Redis from "ioredis";
 import cron from "node-cron";
 import User from "../database/models/User";
@@ -6,6 +7,8 @@ import Day from "../database/models/Day";
 import { getPrayTime } from "../shared/requests";
 import { Queue, QueueEvents, Worker } from "bullmq";
 import { sendAzkarNotification } from "../handlers/azkarNotification";
+
+dayjs.extend(timezone);
 
 const connection = new Redis(process.env.REDIS_URL as string, {
   maxRetriesPerRequest: null,

@@ -1,9 +1,9 @@
 import { MyContext } from "../types";
 import { handleCalendarNavigation } from "./index";
-// import {
-//   handleAzkarNotifyCallback,
-//   handleSliderCallback,
-// } from "./azkarNotification";
+import {
+  handleAzkarNotifyCallback,
+  handleSliderCallback,
+} from "./azkarNotification";
 
 export async function handleCallbackQuery(ctx: MyContext): Promise<void> {
   try {
@@ -24,11 +24,11 @@ export async function handleCallbackQuery(ctx: MyContext): Promise<void> {
     }
 
     if (data.startsWith("azkarnotify:")) {
-    //   await handleAzkarNotifyCallback(ctx);
+        await handleAzkarNotifyCallback(ctx);
       return;
     }
     if (data.startsWith("slider:")) {
-    //   await handleSliderCallback(ctx);
+        await handleSliderCallback(ctx);
       return;
     }
 

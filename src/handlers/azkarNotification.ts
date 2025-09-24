@@ -290,3 +290,49 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
     await ctx.answerCallbackQuery("❌ Ошибка обновления сообщения");
   }
 }
+
+async function sendReminder(
+  telegramId: number,
+  prayer: "Fajr" | "Maghrib",
+  date: string
+) {
+  const user = await User.findOne({ _id: telegramId });
+  const keyboard = new InlineKeyboard()
+    .text("📖 Прочитать", `azkarnotify:read:${prayer}:${date}`)
+    .text("⏰ Отложить (1 ч)", `azkarnotify:postpone:${prayer}:${date}`)
+    .row()
+    .text("❌ Сегодня не буду", `azkarnotify:skip:${prayer}:${date}`);
+
+  if (!user) {
+    console.log("🚫 Пользователь не найден");
+    return;
+  }
+
+  const day = await Day.findOne({
+    userId: user._id,
+    date,
+    type: prayerToType(prayer),
+  });
+
+  if (!day || day.status !== "pending") return;
+
+  if (day.messageId) {
+    try {
+      await api.editMessageText(
+        telegramId,
+        day.messageId,
+        "⚠️ Это старое уведомление. Вы не прочитали азкары вовремя."
+      );
+    } catch (err) {
+      console.log(`Ошибка обновления уведомления: ${err}`);
+    }
+  }
+
+  await api.sendMessage(
+    telegramId,
+    `⏰ Напоминание: пора прочитать ${
+      prayer === "Fajr" ? "утренние" : "вечерние"
+    } азкары`,
+    { reply_markup: keyboard }
+  );
+}

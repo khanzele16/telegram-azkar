@@ -77,9 +77,11 @@ export async function handleCalendarNavigation(
       year,
       month
     );
+    const stats = await StreakService.getProfileStats(user._id);
+    const statsMessage = formatProfileStats(stats);
     const keyboard = generateCalendarMarkup(calendar, year, month);
 
-    await ctx.editMessageText("📊 <b>Статистика</b>", {
+    await ctx.editMessageText(statsMessage, {
       reply_markup: keyboard,
       parse_mode: "HTML",
     });

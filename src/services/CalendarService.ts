@@ -29,7 +29,6 @@ export class CalendarService {
         $lte: end.format("DD-MM-YYYY"),
       },
     });
-    console.log(days)
 
     const calendar: ICalendarDay[] = [];
 
@@ -38,14 +37,13 @@ export class CalendarService {
       d.isBefore(end) || d.isSame(end, "day");
       d = d.add(1, "day")
     ) {
-      const dateStr = d.format("YYYY-MM-DD");
+      const dateStr = d.format("DD-MM-YYYY");
       const morning = days.find(
         (x) => x.date === dateStr && x.type === "morning"
       );
       const evening = days.find(
         (x) => x.date === dateStr && x.type === "evening"
       );
-
 
       calendar.push({
         date: dateStr,

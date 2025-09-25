@@ -75,8 +75,6 @@ export const locationConversation = async (
       longitude.toString(),
       month
     );
-    const nowUTC = dayjs().utc();
-    const today = dayjs().format("DD-MM-YYYY");
 
     if (!prayTimes || prayTimes.length === 0) {
       await ctx.reply(
@@ -84,6 +82,9 @@ export const locationConversation = async (
       );
       return;
     }
+
+    const todayChecker = dayjs().tz(prayTimes[0].timezone, true);
+    const today = dayjs().format("DD-MM-YYYY");
 
     const timingsToAdd = prayTimes.map((pt) => {
       const [day, mm, year] = pt.date.split("-");
@@ -145,7 +146,7 @@ export const locationConversation = async (
     for (const timing of timingsToAdd) {
       const fajrTime = dayjs(timing.FajrUTC).tz(timing.timezone, true);
       const maghribTime = dayjs(timing.MaghribUTC).tz(timing.timezone, true);
-      if (fajrTime.isAfter(nowUTC)) {
+      if (fajrTime.isAfter(todayChecker)) {
         await Day.create({
           userId: user!._id,
           date: timing.date,
@@ -154,7 +155,7 @@ export const locationConversation = async (
           status: "pending",
         });
       }
-      if (maghribTime.isAfter(nowUTC)) {
+      if (maghribTime.isAfter(todayChecker)) {
         await Day.create({
           userId: user!._id,
           date: timing.date,

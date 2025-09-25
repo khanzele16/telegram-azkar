@@ -60,6 +60,7 @@ export interface IAzkar {
 export interface IDay {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
+  remindersSent: number;
   date: string;
   type: "morning" | "evening";
   status: "pending" | "read" | "skipped" | "postponed";

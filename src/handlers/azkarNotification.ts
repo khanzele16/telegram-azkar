@@ -2,17 +2,22 @@ import dotenv from "dotenv";
 import Day from "../database/models/Day";
 import User from "../database/models/User";
 import Azkar from "../database/models/Azkar";
+import timezone from "dayjs/plugin/timezone";
 import { Api, InlineKeyboard } from "grammy";
 import { StreakService } from "../services/StreakService";
 import {
   postponeAzkarNotification,
   cancelAzkarNotification,
+  scheduleAzkarNotification,
 } from "../cron/prayerTimesCron";
 import { Types } from "mongoose";
 import { MyContext } from "../types";
 import { IAzkar } from "../types/models";
+import dayjs from "dayjs";
 
 dotenv.config({ path: "src/.env" });
+
+dayjs.extend(timezone);
 
 const api = new Api(process.env.BOT_TOKEN as string);
 
@@ -53,9 +58,7 @@ export async function sendAzkarNotification(
   const targetChatId = chatId ?? telegramId;
   const user = await User.findOne({ telegramId });
   if (!user) return;
-
   const type = prayerToType(prayer);
-
   const existingDay = await Day.findOne({ userId: user._id, date, type });
   if (
     existingDay &&
@@ -63,27 +66,47 @@ export async function sendAzkarNotification(
   ) {
     return;
   }
-
   const keyboard = new InlineKeyboard()
     .text("📖 Прочитать", `azkarnotify:read:${prayer}:${date}`)
     .text("⏰ Отложить (1 ч)", `azkarnotify:postpone:${prayer}:${date}`)
     .row()
     .text("❌ Сегодня не буду", `azkarnotify:skip:${prayer}:${date}`);
-
   const ctx_message = await api.sendMessage(
     targetChatId,
     `🕌 Время ${prayer === "Fajr" ? "утренних" : "вечерних"} азкаров.`,
     { reply_markup: keyboard }
   );
-
   await Day.updateOne(
     { userId: user._id, date, type },
     {
       $set: { messageId: ctx_message.message_id },
       $setOnInsert: { status: STATUS.PENDING, startedAt: new Date() },
+      $inc: { remindersSent: 1 },
     },
     { upsert: true }
   );
+  const updatedDay = await Day.findOne({ userId: user._id, date, type });
+  if (
+    updatedDay &&
+    updatedDay.status === STATUS.PENDING &&
+    updatedDay.remindersSent < 3
+  ) {
+    let nextRunAtISO: string;
+    if (updatedDay.remindersSent === 1) {
+      nextRunAtISO = dayjs().add(2, "hours").utc().toISOString();
+    } else if (updatedDay.remindersSent === 2) {
+      nextRunAtISO = dayjs().add(2, "hours").utc().toISOString();
+    } else {
+      return;
+    }
+    await scheduleAzkarNotification(
+      user._id.toString(),
+      telegramId,
+      prayer,
+      date,
+      nextRunAtISO
+    );
+  }
 }
 
 async function startAzkarSlider(
@@ -328,11 +351,12 @@ async function sendReminder(
     }
   }
 
-  await api.sendMessage(
+  const message = await api.sendMessage(
     telegramId,
     `⏰ Напоминание: пора прочитать ${
       prayer === "Fajr" ? "утренние" : "вечерние"
     } азкары`,
     { reply_markup: keyboard }
   );
+  await day.updateOne({ messageId: message.message_id });
 }

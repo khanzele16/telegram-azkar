@@ -25,10 +25,10 @@ export async function statsHandler(ctx: MyContext): Promise<void> {
       );
       return;
     }
-
+    
     const stats = await StreakService.getProfileStats(user._id);
     const statsMessage = formatProfileStats(stats);
-
+    
     const now = dayjs.utc();
     const currentYear = now.year();
     const currentMonth = now.month() + 1;
@@ -37,6 +37,7 @@ export async function statsHandler(ctx: MyContext): Promise<void> {
       currentYear,
       currentMonth
     );
+    console.log(calendar)
     const keyboard = generateCalendarMarkup(
       calendar,
       currentYear,

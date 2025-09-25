@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 import Redis from "ioredis";
 import cron from "node-cron";
 import User from "../database/models/User";
@@ -8,6 +9,7 @@ import { getPrayTime } from "../shared/requests";
 import { Queue, QueueEvents, Worker } from "bullmq";
 import { sendAzkarNotification } from "../handlers/azkarNotification";
 
+dayjs.extend(utc)
 dayjs.extend(timezone);
 
 const connection = new Redis(process.env.REDIS_URL as string, {
@@ -40,9 +42,8 @@ export async function scheduleAzkarNotification(
     return;
   }
 
-  const timezone = existing?.timezone || "UTC";
-  const runAt = dayjs(runAtISO).tz(timezone);
-  const now = dayjs().tz(timezone);
+  const runAt = dayjs(runAtISO).utc();
+  const now = dayjs().utc();
   if (runAt.isBefore(now)) {
     console.log(`Time for ${prayer} on ${date} has passed for user ${userId}`);
     return;

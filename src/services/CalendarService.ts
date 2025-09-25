@@ -29,6 +29,7 @@ export class CalendarService {
         $lte: end.format("DD-MM-YYYY"),
       },
     });
+    console.log(days)
 
     const calendar: ICalendarDay[] = [];
 

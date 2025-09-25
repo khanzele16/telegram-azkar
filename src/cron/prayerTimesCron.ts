@@ -9,7 +9,7 @@ import { getPrayTime } from "../shared/requests";
 import { Queue, QueueEvents, Worker } from "bullmq";
 import { sendAzkarNotification } from "../handlers/azkarNotification";
 
-dayjs.extend(utc)
+dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const connection = new Redis(process.env.REDIS_URL as string, {
@@ -94,12 +94,12 @@ export async function updatePrayerTimesAndSchedule(
         `${formattedDate} ${pt.Fajr}`,
         "YYYY-MM-DD HH:mm",
         true
-      );
+      ).tz(pt.timezone, true);
       const maghribDayjs = dayjs(
         `${formattedDate} ${pt.Maghrib}`,
         "YYYY-MM-DD HH:mm",
         true
-      );
+      ).tz(pt.timezone, true);
       console.log(fajrDayjs, maghribDayjs);
 
       if (!fajrDayjs.isValid() || !maghribDayjs.isValid()) {
@@ -114,8 +114,8 @@ export async function updatePrayerTimesAndSchedule(
         throw new Error(`Invalid date format: ${pt.date}`);
       }
 
-      const fajrUTC = fajrDayjs.utc().toISOString();
-      const maghribUTC = maghribDayjs.utc().toISOString();
+      const fajrUTC = fajrDayjs.toISOString();
+      const maghribUTC = maghribDayjs.toISOString();
 
       return {
         timezone: pt.timezone,

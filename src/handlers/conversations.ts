@@ -10,11 +10,7 @@ import {
 } from "../shared/keyboards";
 import { getPrayTime } from "../shared/requests";
 import { IPrayTime, MyConversation, MyConversationContext } from "../types";
-import Azkar from "../database/models/Azkar";
-import {
-  azkarQueue,
-  updatePrayerTimesAndSchedule,
-} from "../cron/prayerTimesCron";
+import { azkarQueue } from "../cron/prayerTimesCron";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);

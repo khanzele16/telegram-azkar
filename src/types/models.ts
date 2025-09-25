@@ -9,6 +9,7 @@ export interface IUser {
     longitude: string;
   };
   timings?: {
+    timezone: string;
     date: string;
     FajrUTC: string;
     MaghribUTC: string;
@@ -71,4 +72,5 @@ export interface IDay {
   messageId: number;
   createdAt?: Date;
   updatedAt?: Date;
+  timezone: string;
 }

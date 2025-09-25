@@ -22,6 +22,7 @@ const Day = new Schema<IDay>(
     startedAt: Date,
     finishedAt: Date,
     postponedUntil: Date,
+    timezone: { type: String, required: true },
   },
   { timestamps: true }
 );

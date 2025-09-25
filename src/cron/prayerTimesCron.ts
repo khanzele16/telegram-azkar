@@ -40,11 +40,15 @@ export async function scheduleAzkarNotification(
     return;
   }
 
-  const runAt = new Date(runAtISO).getTime();
-  const now = Date.now();
-  if (runAt <= now) return;
+  const timezone = existing?.timezone || "UTC";
+  const runAt = dayjs(runAtISO).tz(timezone);
+  const now = dayjs().tz(timezone);
+  if (runAt.isBefore(now)) {
+    console.log(`Time for ${prayer} on ${date} has passed for user ${userId}`);
+    return;
+  }
 
-  const delay = runAt - now;
+  const delay = runAt.diff(now);
   const jobId = jobKey(userId, prayer, date);
 
   const oldJob = await azkarQueue.getJob(jobId);
@@ -113,6 +117,7 @@ export async function updatePrayerTimesAndSchedule(
       const maghribUTC = maghribDayjs.utc().toISOString();
 
       return {
+        timezone: pt.timezone,
         date: pt.date,
         FajrUTC: fajrUTC,
         MaghribUTC: maghribUTC,
@@ -145,6 +150,7 @@ export async function updatePrayerTimesAndSchedule(
           type: "morning",
           utcTime: timing.FajrUTC,
           status: "pending",
+          timezone: timing.timezone,
         });
       }
 
@@ -155,6 +161,7 @@ export async function updatePrayerTimesAndSchedule(
           type: "evening",
           utcTime: timing.MaghribUTC,
           status: "pending",
+          timezone: timing.timezone,
         });
       }
     }

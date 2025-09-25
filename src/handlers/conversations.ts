@@ -90,8 +90,8 @@ export const locationConversation = async (
       const fajrDayjs = dayjs(`${formattedDate} ${pt.Fajr}`).tz(pt.timezone).format("YYYY-MM-DD HH:mm");
       const maghribDayjs = dayjs(`${formattedDate} ${pt.Maghrib}`).tz(pt.timezone).format("YYYY-MM-DD HH:mm");
       console.log('f', fajrDayjs, maghribDayjs)
-      const fajrUTC = fajrDayjs.utc().toISOString();
-      const maghribUTC = maghribDayjs.utc().toISOString();
+      // const fajrUTC = fajrDayjs.utc().toISOString();
+      // const maghribUTC = maghribDayjs.utc().toISOString();
       return {
         timezone: pt.timezone,
         date: pt.date,

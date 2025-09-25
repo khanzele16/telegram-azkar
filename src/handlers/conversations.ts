@@ -149,6 +149,7 @@ export const locationConversation = async (
           type: "morning",
           utcTime: timing.FajrUTC,
           status: "pending",
+          timezone: timing.timezone,
         });
       }
       if (maghribTime.isAfter(todayChecker)) {
@@ -158,6 +159,7 @@ export const locationConversation = async (
           type: "evening",
           utcTime: timing.MaghribUTC,
           status: "pending",
+          timezone: timing.timezone,
         });
       }
     }

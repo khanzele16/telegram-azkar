@@ -82,6 +82,8 @@ export const locationConversation = async (
     const todayChecker = dayjs().tz(prayTimes[0].timezone, true);
     const today = dayjs().format("DD-MM-YYYY");
 
+    console.log(`dayjs().tz(prayTimes[0].timezone, true): ${dayjs().tz(prayTimes[0].timezone, true)}`, prayTimes[0].timezone);
+
     const timingsToAdd = prayTimes.map((pt) => {
       const [day, mm, year] = pt.date.split("-");
       const formattedDate = `${year}-${mm}-${day}`;

@@ -25,8 +25,8 @@ export class CalendarService {
     const days = await Day.find({
       userId,
       date: {
-        $gte: start.format("YYYY-MM-DD"),
-        $lte: end.format("YYYY-MM-DD"),
+        $gte: start.format("DD-MM-YYYY"),
+        $lte: end.format("DD-MM-YYYY"),
       },
     });
 
@@ -44,6 +44,7 @@ export class CalendarService {
       const evening = days.find(
         (x) => x.date === dateStr && x.type === "evening"
       );
+
 
       calendar.push({
         date: dateStr,

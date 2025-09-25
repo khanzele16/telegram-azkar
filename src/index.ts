@@ -13,7 +13,7 @@ import {
 } from "./handlers/conversations";
 import { hydrate } from "@grammyjs/hydrate";
 import { adminMenuButtons, menuButtons } from "./handlers/menu";
-import { startPrayerTimesCron, updatePrayerTimesAndSchedule } from "./cron/prayerTimesCron";
+import { startPrayerTimesCron } from "./cron/prayerTimesCron";
 import User from "./database/models/User";
 import { admin } from "./handlers/commands";
 

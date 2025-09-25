@@ -55,7 +55,7 @@ export const generateCalendarMarkup = (
   }
 
   for (let day = 1; day <= daysInMonth; day++) {
-    const date = currentMonth.date(day).format("YYYY-MM-DD");
+    const date = currentMonth.date(day).format("DD-MM-YYYY");
     const item = calendar.find((r) => r.date === date);
 
     console.log(item)

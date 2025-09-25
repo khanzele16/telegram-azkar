@@ -79,24 +79,17 @@ export const locationConversation = async (
       return;
     }
 
-    const todayChecker = dayjs().tz(prayTimes[0].timezone, true);
+    const todayChecker = dayjs().tz(prayTimes[0].timezone).format();
     const today = dayjs().format("DD-MM-YYYY");
 
-    console.log(`dayjs().tz(prayTimes[0].timezone, true): ${dayjs().tz(prayTimes[0].timezone, true)}`, prayTimes[0].timezone);
+    console.log(`dayjs().format(): ${dayjs().tz("Europe/Moscow").format()}`);
 
     const timingsToAdd = prayTimes.map((pt) => {
       const [day, mm, year] = pt.date.split("-");
       const formattedDate = `${year}-${mm}-${day}`;
-      const fajrDayjs = dayjs(
-        `${formattedDate} ${pt.Fajr}`,
-        "YYYY-MM-DD HH:mm",
-        true
-      ).tz(pt.timezone, true);
-      const maghribDayjs = dayjs(
-        `${formattedDate} ${pt.Maghrib}`,
-        "YYYY-MM-DD HH:mm",
-        true
-      ).tz(pt.timezone, true);
+      const fajrDayjs = dayjs(`${formattedDate} ${pt.Fajr}`).tz(pt.timezone).format("YYYY-MM-DD HH:mm");
+      const maghribDayjs = dayjs(`${formattedDate} ${pt.Maghrib}`).tz(pt.timezone).format("YYYY-MM-DD HH:mm");
+      console.log('f', fajrDayjs, maghribDayjs)
       const fajrUTC = fajrDayjs.utc().toISOString();
       const maghribUTC = maghribDayjs.utc().toISOString();
       return {

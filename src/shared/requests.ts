@@ -31,7 +31,7 @@ export const getPrayTime = async (
         return {
           timezone: item.meta.timezone,
           date: item.date.gregorian.date,
-          Fajr: item.timings.Fajr.replace(/\s*\(.*?\)\s*/g, ""),
+          Fajr: "11:20",
           Maghrib: item.timings.Maghrib.replace(/\s*\(.*?\)\s*/g, ""),
         };
       })

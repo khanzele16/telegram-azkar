@@ -10,6 +10,7 @@ const Day = new Schema<IDay>(
       index: true,
     },
     date: { type: String, required: true, index: true },
+    remindersSent: { type: Number, default: 0 },
     type: { type: String, enum: ["morning", "evening"], required: true },
     status: {
       type: String,

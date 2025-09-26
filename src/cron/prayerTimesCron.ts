@@ -133,7 +133,7 @@ export async function updatePrayerTimesAndSchedule(
 
     if (!prayTimes) continue;
 
-    const todayChecker = dayjs().tz(prayTimes[0].timezone).format();
+    const todayChecker = dayjs().tz(prayTimes[0].timezone);
 
     const timingsToAdd = prayTimes.map((pt) => {
       const [day, mm, year] = pt.date.split("-");

@@ -82,7 +82,7 @@ export const locationConversation = async (
       return;
     }
 
-    const todayChecker = dayjs().tz(prayTimes[0].timezone).format();
+    const todayChecker = dayjs().tz(prayTimes[0].timezone);
     const todayUTC = dayjs().utc().toISOString();
     const today = dayjs().format("DD-MM-YYYY");
 

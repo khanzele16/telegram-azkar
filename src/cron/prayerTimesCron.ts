@@ -7,7 +7,7 @@ import User from "../database/models/User";
 import Day from "../database/models/Day";
 import { getPrayTime } from "../shared/requests";
 import { Queue, QueueEvents, Worker } from "bullmq";
-import { sendAzkarNotification } from "../handlers/azkarNotification";
+import { sendAzkarNotification, sendAzkarNotify } from "../handlers/azkarNotification";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -23,6 +23,28 @@ export const azkarQueueEvents = new QueueEvents("azkar", { connection });
 
 function jobKey(userId: string, prayer: PrayerType, date: string) {
   return `${userId}:${prayer}:${date}`;
+}
+
+export async function scheduleAzkarNotify(
+  userId: string,
+  telegramId: number,
+  prayer: PrayerType,
+  date: string,
+  runAtISO: string
+): Promise<void> {
+  const runAt = dayjs(runAtISO).utc();
+  const now = dayjs().utc();
+  const delay = runAt.diff(now);
+
+  const jobId = `${userId}:${prayer}:${date}`;
+  const oldJob = await azkarQueue.getJob(jobId);
+  if (oldJob) await oldJob.remove();
+
+  await azkarQueue.add(
+    "notify",
+    { telegramId, prayer, date, utcTime: runAt.toISOString(), notify: true },
+    { jobId, delay, attempts: 3, removeOnComplete: true, removeOnFail: 50 }
+  );
 }
 
 export async function scheduleAzkarNotification(
@@ -44,7 +66,7 @@ export async function scheduleAzkarNotification(
 
   const runAt = dayjs(runAtISO).utc();
   const now = dayjs().utc();
-  console.log(`runAtISO: ${runAtISO}, runAt: ${runAt}, now: ${now}`)
+
   if (runAt.isBefore(now)) {
     console.log(`Time for ${prayer} on ${date} has passed for user ${userId}`);
     return;
@@ -58,12 +80,20 @@ export async function scheduleAzkarNotification(
 
   await azkarQueue.add(
     "send",
-    { userId, telegramId, prayer, date, utcTime: runAt.toISOString() },
+    {
+      userId,
+      telegramId,
+      prayer,
+      date,
+      utcTime: runAt.toISOString(),
+      notify: false,
+    },
     { jobId, delay, attempts: 3, removeOnComplete: true, removeOnFail: 50 }
   );
 }
 
 export async function updatePrayerTimesAndSchedule(
+  addNextMonth: boolean,
   telegramId?: number
 ): Promise<void> {
   const users = telegramId
@@ -78,13 +108,26 @@ export async function updatePrayerTimesAndSchedule(
     if (!user.location) continue;
     const { latitude, longitude } = user.location;
     const userId = user._id.toString();
+    let prayTimes;
 
-    const month = dayjs().month() + 1;
-    const prayTimes = await getPrayTime(
-      latitude.toString(),
-      longitude.toString(),
-      month
-    );
+    if (addNextMonth) {
+      const month = dayjs().month() + 1;
+      const secondMonth = dayjs().month() + 2;
+      prayTimes = await getPrayTime(
+        latitude.toString(),
+        longitude.toString(),
+        month,
+        secondMonth
+      );
+    } else {
+      const month = dayjs().month() + 1;
+      prayTimes = await getPrayTime(
+        latitude.toString(),
+        longitude.toString(),
+        month
+      );
+    }
+
     if (!prayTimes) continue;
 
     const timingsToAdd = prayTimes.map((pt) => {
@@ -152,7 +195,6 @@ export async function updatePrayerTimesAndSchedule(
           timezone: timing.timezone,
         });
       }
-
       if (!existingDayEvening) {
         await Day.create({
           userId,
@@ -191,13 +233,19 @@ export async function updatePrayerTimesAndSchedule(
 export const azkarWorker = new Worker(
   "azkar",
   async (job) => {
-    const { telegramId, prayer, date, utcTime } = job.data as {
+    const { telegramId, prayer, date, utcTime, notify } = job.data as {
       telegramId: number;
       prayer: PrayerType;
       date: string;
       utcTime: string;
+      notify?: boolean;
     };
-    await sendAzkarNotification(telegramId, prayer, date);
+    
+    if (notify) {
+      await sendAzkarNotify(telegramId, prayer, date);
+    } else {
+      await sendAzkarNotification(telegramId, prayer, date);
+    }
   },
   { connection, concurrency: 5 }
 );
@@ -215,7 +263,7 @@ export async function postponeAzkarNotification(
   const delay = 60 * 60 * 1000;
   await azkarQueue.add(
     "send",
-    { userId, telegramId, prayer, date },
+    { userId, telegramId, prayer, date, utcTime: new Date().toISOString(), notify: false },
     { jobId, delay, attempts: 3, removeOnComplete: true, removeOnFail: 50 }
   );
 }
@@ -232,10 +280,10 @@ export async function cancelAzkarNotification(
 
 export function startPrayerTimesCron(): void {
   cron.schedule(
-    "10 0 1 * *",
+    "10 0 26 * *",
     async () => {
       try {
-        await updatePrayerTimesAndSchedule();
+        await updatePrayerTimesAndSchedule(true);
       } catch (e) {
         console.error("Ошибка при обновлении расписания намазов:", e);
       }

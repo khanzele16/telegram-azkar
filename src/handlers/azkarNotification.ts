@@ -9,6 +9,7 @@ import {
   postponeAzkarNotification,
   cancelAzkarNotification,
   scheduleAzkarNotification,
+  scheduleAzkarNotify,
 } from "../cron/prayerTimesCron";
 import { Types } from "mongoose";
 import { MyContext } from "../types";
@@ -49,6 +50,44 @@ const sliderStates = new Map<
   }
 >();
 
+export async function sendAzkarNotify(
+  telegramId: number,
+  prayer: "Fajr" | "Maghrib",
+  date: string,
+  chatId?: number
+): Promise<void> {
+  const targetChatId = chatId ?? telegramId;
+  const user = await User.findOne({ telegramId });
+  const nextRunAtISO = dayjs().add(1, "hours").utc().toISOString();
+
+  if (!user) return;
+  const type = prayerToType(prayer);
+  const existingDay = await Day.findOne({ userId: user._id, date, type });
+  if (
+    existingDay &&
+    (existingDay.status === "read" ||
+      existingDay.status === "postponed" ||
+      existingDay.status === "skipped")
+  ) {
+    return;
+  }
+  await api.sendMessage(
+    targetChatId,
+    `🕌 Время ${
+      prayer === "Fajr" ? "утренних" : "вечерних"
+    } азкаров уже давно настало.\n\n<b>⚠️ Отметьтесь, пока не стало поздно!</b>`,
+    { parse_mode: "HTML" }
+  );
+
+  await scheduleAzkarNotification(
+    user._id.toString(),
+    telegramId,
+    prayer,
+    date,
+    nextRunAtISO
+  );
+}
+
 export async function sendAzkarNotification(
   telegramId: number,
   prayer: "Fajr" | "Maghrib",
@@ -62,7 +101,8 @@ export async function sendAzkarNotification(
   const existingDay = await Day.findOne({ userId: user._id, date, type });
   if (
     existingDay &&
-    (existingDay.status === "read" || existingDay.status === "skipped")
+    (existingDay.status === STATUS.READ ||
+      existingDay.status === STATUS.SKIPPED)
   ) {
     return;
   }
@@ -89,16 +129,16 @@ export async function sendAzkarNotification(
   if (
     updatedDay &&
     updatedDay.status === STATUS.PENDING &&
-    updatedDay.remindersSent < 3
+    updatedDay.remindersSent === 1
   ) {
-    let nextRunAtISO: string;
-    if (updatedDay.remindersSent === 1) {
-      nextRunAtISO = dayjs().add(2, "hours").utc().toISOString();
-    } else if (updatedDay.remindersSent === 2) {
-      nextRunAtISO = dayjs().add(2, "hours").utc().toISOString();
-    } else {
-      return;
-    }
+    const nextRunAtISO = dayjs().add(1, "hours").utc().toISOString();
+    await scheduleAzkarNotify(
+      user._id.toString(),
+      telegramId,
+      prayer,
+      date,
+      nextRunAtISO
+    );
     await scheduleAzkarNotification(
       user._id.toString(),
       telegramId,
@@ -312,51 +352,4 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
   } catch {
     await ctx.answerCallbackQuery("❌ Ошибка обновления сообщения");
   }
-}
-
-async function sendReminder(
-  telegramId: number,
-  prayer: "Fajr" | "Maghrib",
-  date: string
-) {
-  const user = await User.findOne({ _id: telegramId });
-  const keyboard = new InlineKeyboard()
-    .text("📖 Прочитать", `azkarnotify:read:${prayer}:${date}`)
-    .text("⏰ Отложить (1 ч)", `azkarnotify:postpone:${prayer}:${date}`)
-    .row()
-    .text("❌ Сегодня не буду", `azkarnotify:skip:${prayer}:${date}`);
-
-  if (!user) {
-    console.log("🚫 Пользователь не найден");
-    return;
-  }
-
-  const day = await Day.findOne({
-    userId: user._id,
-    date,
-    type: prayerToType(prayer),
-  });
-
-  if (!day || day.status !== "pending") return;
-
-  if (day.messageId) {
-    try {
-      await api.editMessageText(
-        telegramId,
-        day.messageId,
-        "⚠️ Это старое уведомление. Вы не прочитали азкары вовремя."
-      );
-    } catch (err) {
-      console.log(`Ошибка обновления уведомления: ${err}`);
-    }
-  }
-
-  const message = await api.sendMessage(
-    telegramId,
-    `⏰ Напоминание: пора прочитать ${
-      prayer === "Fajr" ? "утренние" : "вечерние"
-    } азкары`,
-    { reply_markup: keyboard }
-  );
-  await day.updateOne({ messageId: message.message_id });
 }

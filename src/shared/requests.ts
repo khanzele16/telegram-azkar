@@ -24,27 +24,35 @@ axiosRetry(axios, {
 export const getPrayTime = async (
   latitude: string,
   longitude: string,
-  month: number
+  month: number,
+  secondMonth?: number
 ): Promise<IPrayTime[] | null> => {
   try {
-    const { data } = await axios.get<IPrayTimeResponse>(
-      `https://api.aladhan.com/v1/calendar?month=${month}&latitude=${latitude}&longitude=${longitude}&method=2`
-    );
     const today = dayjs();
-    return data.data
-      .map((item) => {
-        return {
-          timezone: item.meta.timezone,
-          date: item.date.gregorian.date,
-          Fajr: "11:06",
-          Maghrib: item.timings.Maghrib.replace(/\s*\(.*?\)\s*/g, ""),
-        };
-      })
-      .filter((item) => {
-        const [day, month, year] = item.date.split("-");
-        const itemDay = dayjs(`${year}-${month}-${day}`);
-        return itemDay.isSame(today, "day") || itemDay.isAfter(today, "day");
-      });
+    const months = [month];
+    if (secondMonth) months.push(secondMonth);
+    const allResults: IPrayTime[] = [];
+    for (const m of months) {
+      const { data } = await axios.get<IPrayTimeResponse>(
+        `https://api.aladhan.com/v1/calendar?month=${m}&latitude=${latitude}&longitude=${longitude}&method=2`
+      );
+      const mapped = data.data
+        .map((item) => {
+          return {
+            timezone: item.meta.timezone,
+            date: item.date.gregorian.date,
+            Fajr: item.timings.Fajr.replace(/\s*\(.*?\)\s*/g, ""),
+            Maghrib: item.timings.Maghrib.replace(/\s*\(.*?\)\s*/g, ""),
+          };
+        })
+        .filter((item) => {
+          const [day, month, year] = item.date.split("-");
+          const itemDay = dayjs(`${year}-${month}-${day}`);
+          return itemDay.isSame(today, "day") || itemDay.isAfter(today, "day");
+        });
+      allResults.push(...mapped);
+    }
+    return allResults;
   } catch (err) {
     console.error("⚠️ Ошибка получения времени молитв:", err);
     throw err;

@@ -150,7 +150,6 @@ export const locationConversation = async (
     for (const timing of timingsToAdd) {
       const fajrTime = dayjs.tz(timing.FajrUTC, timing.timezone);
       const maghribTime = dayjs.tz(timing.MaghribUTC, timing.timezone);
-      console.log(`fajrTime: ${fajrTime}, today: ${todayChecker}`)
       if (fajrTime.isAfter(todayChecker)) {
         await Day.create({
           userId: user!._id,
@@ -173,7 +172,8 @@ export const locationConversation = async (
       }
     }
 
-    await updatePrayerTimesAndSchedule(ctx.from?.id);
+    await updatePrayerTimesAndSchedule(false, ctx.from?.id);
+    
     const todayPrayTime =
       prayTimes.find((p) => p.date === today) || prayTimes[0];
 

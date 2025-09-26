@@ -10,7 +10,10 @@ import {
 } from "../shared/keyboards";
 import { getPrayTime } from "../shared/requests";
 import { IPrayTime, MyConversation, MyConversationContext } from "../types";
-import { azkarQueue } from "../cron/prayerTimesCron";
+import {
+  azkarQueue,
+  updatePrayerTimesAndSchedule,
+} from "../cron/prayerTimesCron";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -169,6 +172,7 @@ export const locationConversation = async (
       }
     }
 
+    await updatePrayerTimesAndSchedule(ctx.from?.id);
     const todayPrayTime =
       prayTimes.find((p) => p.date === today) || prayTimes[0];
 

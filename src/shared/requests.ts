@@ -30,8 +30,6 @@ export const getPrayTime = async (
     const { data } = await axios.get<IPrayTimeResponse>(
       `https://api.aladhan.com/v1/calendar?month=${month}&latitude=${latitude}&longitude=${longitude}&method=2`
     );
-    console.log(`${dayjs().utc().format()} - UTC`);
-    console.log(`${dayjs.tz(dayjs(), "Europe/Moscow").format()} - Moscow`);
     const today = dayjs();
     return data.data
       .map((item) => {

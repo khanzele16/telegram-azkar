@@ -52,6 +52,7 @@ export const getPrayTime = async (
         });
       allResults.push(...mapped);
     }
+    console.log(allResults)
     return allResults;
   } catch (err) {
     console.error("⚠️ Ошибка получения времени молитв:", err);

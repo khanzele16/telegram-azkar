@@ -173,7 +173,7 @@ export const locationConversation = async (
     }
 
     await updatePrayerTimesAndSchedule(false, ctx.from?.id);
-    
+
     const todayPrayTime =
       prayTimes.find((p) => p.date === today) || prayTimes[0];
 

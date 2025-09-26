@@ -7,7 +7,10 @@ import User from "../database/models/User";
 import Day from "../database/models/Day";
 import { getPrayTime } from "../shared/requests";
 import { Queue, QueueEvents, Worker } from "bullmq";
-import { sendAzkarNotification, sendAzkarNotify } from "../handlers/azkarNotification";
+import {
+  sendAzkarNotification,
+  sendAzkarNotify,
+} from "../handlers/azkarNotification";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -130,6 +133,8 @@ export async function updatePrayerTimesAndSchedule(
 
     if (!prayTimes) continue;
 
+    const todayChecker = dayjs().tz(prayTimes[0].timezone).format();
+
     const timingsToAdd = prayTimes.map((pt) => {
       const [day, mm, year] = pt.date.split("-");
       const formattedDate = `${year}-${mm}-${day}`;
@@ -174,6 +179,8 @@ export async function updatePrayerTimesAndSchedule(
     }
 
     for (const timing of timingsToAdd) {
+      const fajrTime = dayjs.tz(timing.FajrUTC, timing.timezone);
+      const maghribTime = dayjs.tz(timing.MaghribUTC, timing.timezone);
       const existingDayMorning = await Day.findOne({
         userId,
         date: timing.date,
@@ -185,7 +192,7 @@ export async function updatePrayerTimesAndSchedule(
         type: "evening",
       });
 
-      if (!existingDayMorning) {
+      if (!existingDayMorning && fajrTime.isAfter(todayChecker)) {
         await Day.create({
           userId,
           date: timing.date,
@@ -195,7 +202,7 @@ export async function updatePrayerTimesAndSchedule(
           timezone: timing.timezone,
         });
       }
-      if (!existingDayEvening) {
+      if (!existingDayEvening && maghribTime.isAfter(todayChecker)) {
         await Day.create({
           userId,
           date: timing.date,
@@ -240,7 +247,7 @@ export const azkarWorker = new Worker(
       utcTime: string;
       notify?: boolean;
     };
-    
+
     if (notify) {
       await sendAzkarNotify(telegramId, prayer, date);
     } else {
@@ -263,7 +270,14 @@ export async function postponeAzkarNotification(
   const delay = 60 * 60 * 1000;
   await azkarQueue.add(
     "send",
-    { userId, telegramId, prayer, date, utcTime: new Date().toISOString(), notify: false },
+    {
+      userId,
+      telegramId,
+      prayer,
+      date,
+      utcTime: new Date().toISOString(),
+      notify: false,
+    },
     { jobId, delay, attempts: 3, removeOnComplete: true, removeOnFail: 50 }
   );
 }

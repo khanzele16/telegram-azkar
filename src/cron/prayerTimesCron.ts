@@ -89,17 +89,16 @@ export async function updatePrayerTimesAndSchedule(
     const timingsToAdd = prayTimes.map((pt) => {
       const [day, mm, year] = pt.date.split("-");
       const formattedDate = `${year}-${mm}-${day}`;
-
-      const fajrDayjs = dayjs(
+      const fajrDayjs = dayjs.tz(
         `${formattedDate} ${pt.Fajr}`,
         "YYYY-MM-DD HH:mm",
-        true
-      ).tz(pt.timezone, true);
-      const maghribDayjs = dayjs(
+        pt.timezone
+      );
+      const maghribDayjs = dayjs.tz(
         `${formattedDate} ${pt.Maghrib}`,
         "YYYY-MM-DD HH:mm",
-        true
-      ).tz(pt.timezone, true);
+        pt.timezone
+      );
 
       if (!fajrDayjs.isValid() || !maghribDayjs.isValid()) {
         console.error("Invalid date parsing in cron:", {
@@ -113,9 +112,8 @@ export async function updatePrayerTimesAndSchedule(
         throw new Error(`Invalid date format: ${pt.date}`);
       }
 
-      const fajrUTC = fajrDayjs.toISOString();
-      const maghribUTC = maghribDayjs.toISOString();
-
+      const fajrUTC = fajrDayjs.utc().toISOString();
+      const maghribUTC = maghribDayjs.utc().toISOString();
       return {
         timezone: pt.timezone,
         date: pt.date,

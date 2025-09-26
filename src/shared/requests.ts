@@ -31,14 +31,14 @@ export const getPrayTime = async (
       `https://api.aladhan.com/v1/calendar?month=${month}&latitude=${latitude}&longitude=${longitude}&method=2`
     );
     console.log(`${dayjs().utc()} - UTC`);
-    console.log(`${dayjs().tz("Europe/Moscow")} - Moscow`);
+    console.log(`${dayjs().tz("Europe/Moscow").toISOString()} - Moscow`);
     const today = dayjs();
     return data.data
       .map((item) => {
         return {
           timezone: item.meta.timezone,
           date: item.date.gregorian.date,
-          Fajr: item.timings.Fajr.replace(/\s*\(.*?\)\s*/g, ""),
+          Fajr: "9:46",
           Maghrib: item.timings.Maghrib.replace(/\s*\(.*?\)\s*/g, ""),
         };
       })

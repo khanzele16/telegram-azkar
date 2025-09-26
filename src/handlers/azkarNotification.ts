@@ -139,13 +139,6 @@ export async function sendAzkarNotification(
       date,
       nextRunAtISO
     );
-    await scheduleAzkarNotification(
-      user._id.toString(),
-      telegramId,
-      prayer,
-      date,
-      nextRunAtISO
-    );
   }
 }
 

@@ -153,12 +153,12 @@ export const locationConversation = async (
       console.log(
         `Fajr Time: ${fajrTime}, Today: ${todayChecker}, ${fajrTime.isAfter(
           todayChecker
-        )}`
+        )}, ${timing}`
       );
       console.log(
-        `Fajr Time: ${maghribTime}, Today: ${todayChecker}, ${maghribTime.isAfter(
+        `Maghrib Time: ${maghribTime}, Today: ${todayChecker}, ${maghribTime.isAfter(
           todayChecker
-        )}`
+        )}, ${timing}`
       );
       if (fajrTime.isAfter(todayChecker)) {
         await Day.create({

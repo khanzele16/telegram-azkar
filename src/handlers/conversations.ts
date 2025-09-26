@@ -87,11 +87,25 @@ export const locationConversation = async (
     const timingsToAdd = prayTimes.map((pt) => {
       const [day, mm, year] = pt.date.split("-");
       const formattedDate = `${year}-${mm}-${day}`;
-      const fajrDayjs = dayjs(`${formattedDate} ${pt.Fajr}`).tz(pt.timezone).format("YYYY-MM-DD HH:mm");
-      const maghribDayjs = dayjs(`${formattedDate} ${pt.Maghrib}`).tz(pt.timezone).format("YYYY-MM-DD HH:mm");
-      console.log('f', fajrDayjs, maghribDayjs)
-      // const fajrUTC = fajrDayjs.utc().toISOString();
-      // const maghribUTC = maghribDayjs.utc().toISOString();
+      const fajrDayjs = dayjs.tz(
+        `${formattedDate} ${pt.Fajr}`,
+        "YYYY-MM-DD HH:mm",
+        pt.timezone
+      );
+      const maghribDayjs = dayjs.tz(
+        `${formattedDate} ${pt.Maghrib}`,
+        "YYYY-MM-DD HH:mm",
+        pt.timezone
+      );
+
+      console.log(
+        "local tz:",
+        fajrDayjs.format("YYYY-MM-DD HH:mm"),
+        maghribDayjs.format("YYYY-MM-DD HH:mm")
+      );
+
+      const fajrUTC = fajrDayjs.utc().toISOString();
+      const maghribUTC = maghribDayjs.utc().toISOString();
       // return {
       //   timezone: pt.timezone,
       //   date: pt.date,

@@ -22,7 +22,7 @@ export const azkarQueue = new Queue("azkar", { connection });
 export const azkarQueueEvents = new QueueEvents("azkar", { connection });
 
 function jobKey(userId: string, prayer: PrayerType, date: string) {
-  return `azkar:${userId}:${prayer}:${date}`;
+  return `${userId}:${prayer}:${date}`;
 }
 
 export async function scheduleAzkarNotification(
@@ -57,7 +57,7 @@ export async function scheduleAzkarNotification(
 
   await azkarQueue.add(
     "send",
-    { userId, telegramId, prayer, date },
+    { userId, telegramId, prayer, date, utcTime: runAt.toISOString() },
     { jobId, delay, attempts: 3, removeOnComplete: true, removeOnFail: 50 }
   );
 }
@@ -100,7 +100,6 @@ export async function updatePrayerTimesAndSchedule(
         "YYYY-MM-DD HH:mm",
         true
       ).tz(pt.timezone, true);
-      console.log(fajrDayjs, maghribDayjs);
 
       if (!fajrDayjs.isValid() || !maghribDayjs.isValid()) {
         console.error("Invalid date parsing in cron:", {
@@ -193,10 +192,11 @@ export async function updatePrayerTimesAndSchedule(
 export const azkarWorker = new Worker(
   "azkar",
   async (job) => {
-    const { telegramId, prayer, date } = job.data as {
+    const { telegramId, prayer, date, utcTime } = job.data as {
       telegramId: number;
       prayer: PrayerType;
       date: string;
+      utcTime: string;
     };
     await sendAzkarNotification(telegramId, prayer, date);
   },

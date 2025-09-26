@@ -80,7 +80,8 @@ export const locationConversation = async (
     }
 
     const todayChecker = dayjs().tz(prayTimes[0].timezone).format();
-    const todayUTC = dayjs().format("DD-MM-YYYY");
+    const todayUTC = dayjs().utc().toISOString();
+    const today = dayjs().format("DD-MM-YYYY");
 
     console.log(`todayUTC: ${todayUTC}`, `todayTimezone: ${todayChecker}`);
 
@@ -124,7 +125,10 @@ export const locationConversation = async (
         "paused",
       ]);
       for (const job of jobs) {
-        if (job.data.userId.toString() === user._id.toString()) {
+        if (
+          job.data.userId.toString() === user._id.toString() &&
+          job.data.utcTime > todayUTC
+        ) {
           await job.remove();
         }
       }

@@ -5,8 +5,8 @@ import axios from "axios";
 import axiosRetry from "axios-retry";
 import { IPrayTime, IPrayTimeResponse } from "../types";
 
-dayjs.extend(utc)
-dayjs.extend(timezone)
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 axiosRetry(axios, {
   retries: 3,
@@ -30,15 +30,15 @@ export const getPrayTime = async (
     const { data } = await axios.get<IPrayTimeResponse>(
       `https://api.aladhan.com/v1/calendar?month=${month}&latitude=${latitude}&longitude=${longitude}&method=2`
     );
-    console.log(`${dayjs().utc()} - UTC`)
-    console.log(`${dayjs().tz("Europe/Moscow")} - Moscow`)
+    console.log(`${dayjs().utc()} - UTC`);
+    console.log(`${dayjs().tz("Europe/Moscow")} - Moscow`);
     const today = dayjs();
     return data.data
       .map((item) => {
         return {
           timezone: item.meta.timezone,
           date: item.date.gregorian.date,
-          Fajr: "14:50",
+          Fajr: item.timings.Fajr.replace(/\s*\(.*?\)\s*/g, ""),
           Maghrib: item.timings.Maghrib.replace(/\s*\(.*?\)\s*/g, ""),
         };
       })

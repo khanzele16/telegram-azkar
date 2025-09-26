@@ -80,9 +80,9 @@ export const locationConversation = async (
     }
 
     const todayChecker = dayjs().tz(prayTimes[0].timezone).format();
-    const today = dayjs().format("DD-MM-YYYY");
+    const todayUTC = dayjs().format("DD-MM-YYYY");
 
-    console.log(`dayjs().format(): ${dayjs().tz("Europe/Moscow").format()}`);
+    console.log(`todayUTC: ${todayUTC}`, `todayTimezone: ${todayChecker}`);
 
     const timingsToAdd = prayTimes.map((pt) => {
       const [day, mm, year] = pt.date.split("-");
@@ -98,80 +98,74 @@ export const locationConversation = async (
         pt.timezone
       );
 
-      console.log(
-        "local tz:",
-        fajrDayjs.format("YYYY-MM-DD HH:mm"),
-        maghribDayjs.format("YYYY-MM-DD HH:mm")
-      );
-
       const fajrUTC = fajrDayjs.utc().toISOString();
       const maghribUTC = maghribDayjs.utc().toISOString();
-      // return {
-      //   timezone: pt.timezone,
-      //   date: pt.date,
-      //   FajrUTC: fajrUTC,
-      //   MaghribUTC: maghribUTC,
-      // };
+      return {
+        timezone: pt.timezone,
+        date: pt.date,
+        FajrUTC: fajrUTC,
+        MaghribUTC: maghribUTC,
+      };
     });
 
-    // let user = await User.findOne({ telegramId: ctx.from?.id });
+    let user = await User.findOne({ telegramId: ctx.from?.id });
 
-    // if (user) {
-    //   await Day.deleteMany({
-    //     userId: user._id,
-    //     status: "pending",
-    //     utcTime: { $gt: dayjs().utc().toISOString() },
-    //   });
+    if (user) {
+      await Day.deleteMany({
+        userId: user._id,
+        status: "pending",
+        utcTime: { $gt: dayjs().utc().toISOString() },
+      });
 
-    //   const jobs = await azkarQueue.getJobs([
-    //     "delayed",
-    //     "waiting",
-    //     "active",
-    //     "paused",
-    //   ]);
-    //   for (const job of jobs) {
-    //     if (job.data.userId.toString() === user._id.toString()) {
-    //       await job.remove();
-    //     }
-    //   }
-    // }
+      const jobs = await azkarQueue.getJobs([
+        "delayed",
+        "waiting",
+        "active",
+        "paused",
+      ]);
+      for (const job of jobs) {
+        if (job.data.userId.toString() === user._id.toString()) {
+          await job.remove();
+        }
+      }
+    }
 
-    // user = await User.findOneAndUpdate(
-    //   { telegramId: ctx.from?.id },
-    //   {
-    //     $set: {
-    //       "location.latitude": latitude.toString(),
-    //       "location.longitude": longitude.toString(),
-    //       timings: timingsToAdd,
-    //     },
-    //   },
-    //   { upsert: true, new: true }
-    // );
+    user = await User.findOneAndUpdate(
+      { telegramId: ctx.from?.id },
+      {
+        $set: {
+          "location.latitude": latitude.toString(),
+          "location.longitude": longitude.toString(),
+          timings: timingsToAdd,
+        },
+      },
+      { upsert: true, new: true }
+    );
 
-    // for (const timing of timingsToAdd) {
-    //   const fajrTime = dayjs(timing.FajrUTC).tz(timing.timezone, true);
-    //   const maghribTime = dayjs(timing.MaghribUTC).tz(timing.timezone, true);
-    //   if (fajrTime.isAfter(todayChecker)) {
-    //     await Day.create({
-    //       userId: user!._id,
-    //       date: timing.date,
-    //       type: "morning",
-    //       utcTime: timing.FajrUTC,
-    //       status: "pending",
-    //       timezone: timing.timezone,
-    //     });
-    //   }
-    //   if (maghribTime.isAfter(todayChecker)) {
-    //     await Day.create({
-    //       userId: user!._id,
-    //       date: timing.date,
-    //       type: "evening",
-    //       utcTime: timing.MaghribUTC,
-    //       status: "pending",
-    //       timezone: timing.timezone,
-    //     });
-    //   }
-    // }
+    for (const timing of timingsToAdd) {
+      const fajrTime = dayjs(timing.FajrUTC).tz(timing.timezone, true);
+      const maghribTime = dayjs(timing.MaghribUTC).tz(timing.timezone, true);
+      if (fajrTime.isAfter(todayChecker)) {
+        await Day.create({
+          userId: user!._id,
+          date: timing.date,
+          type: "morning",
+          utcTime: timing.FajrUTC,
+          status: "pending",
+          timezone: timing.timezone,
+        });
+      }
+      if (maghribTime.isAfter(todayChecker)) {
+        await Day.create({
+          userId: user!._id,
+          date: timing.date,
+          type: "evening",
+          utcTime: timing.MaghribUTC,
+          status: "pending",
+          timezone: timing.timezone,
+        });
+      }
+    }
 
     const todayPrayTime =
       prayTimes.find((p) => p.date === today) || prayTimes[0];

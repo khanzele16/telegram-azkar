@@ -44,7 +44,7 @@ export async function scheduleAzkarNotification(
 
   const runAt = dayjs(runAtISO).utc();
   const now = dayjs().utc();
-  console.log(`runAt: ${runAt}, now: ${now}`)
+  console.log(`runAtISO: ${runAtISO}, runAt: ${runAt}, now: ${now}`)
   if (runAt.isBefore(now)) {
     console.log(`Time for ${prayer} on ${date} has passed for user ${userId}`);
     return;

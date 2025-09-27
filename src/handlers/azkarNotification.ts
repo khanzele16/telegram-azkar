@@ -60,81 +60,71 @@ export async function sendAzkarNotify(
   if (!user) return;
   const type = prayerToType(prayer);
   const existingDay = await Day.findOne({ userId: user._id, date, type });
-  
+
   if (
     existingDay &&
-    (existingDay.status === "read" ||
-      existingDay.status === "skipped")
+    (existingDay.status === "read" || existingDay.status === "skipped")
   ) {
-    console.log(`Пропускаем напоминание для пользователя ${telegramId}, статус: ${existingDay.status}`);
+    console.log(
+      `Пропускаем напоминание для пользователя ${telegramId}, статус: ${existingDay.status}`
+    );
     return;
   }
 
-  if (utcTime) {
-    const now = dayjs();
-    const originalTime = dayjs(utcTime);
-    const timePassed = now.diff(originalTime, 'minute');
+  // Проверяем, сколько напоминаний уже отправлено
+  const currentReminders = existingDay?.remindersSent || 0;
+  
+  if (currentReminders === 0) {
+    // Первое напоминание - отправляем новое сообщение
+    await api.sendMessage(
+      targetChatId,
+      `🕌 Время ${
+        prayer === "Fajr" ? "утренних" : "вечерних"
+      } азкаров.\n\n<b>⚠️ Отметьтесь, пока не стало поздно!</b>`,
+      { parse_mode: "HTML" }
+    );
+  } else if (currentReminders === 1) {
+    // Второе напоминание - отправляем новое сообщение
+    await api.sendMessage(
+      targetChatId,
+      `🕌 Время ${
+        prayer === "Fajr" ? "утренних" : "вечерних"
+      } азкаров.\n\n<b>⚠️ Отметьтесь, пока не стало поздно!</b>`,
+      { parse_mode: "HTML" }
+    );
+  } else if (currentReminders === 2) {
+    // Третье напоминание - отправляем новое сообщение
+    await api.sendMessage(
+      targetChatId,
+      `🕌 Время ${
+        prayer === "Fajr" ? "утренних" : "вечерних"
+      } азкаров.\n\n<b>⚠️ Отметьтесь, пока не стало поздно!</b>`,
+      { parse_mode: "HTML" }
+    );
+  } else if (currentReminders >= 3) {
+    // Четвертое напоминание - делаем skipped и обновляем последнее сообщение
+    await Day.updateOne(
+      { userId: user._id, date, type },
+      { $set: { status: STATUS.SKIPPED } }
+    );
     
-    if (timePassed >= 5) {
-      console.log(`Автоматически пропускаем азкары для пользователя ${telegramId} - прошло ${timePassed} минут`);
-      
-      await Day.updateOne(
-        { userId: user._id, date, type },
-        { $set: { status: STATUS.SKIPPED } }
-      );
-      
-      // Обновляем сообщение
-      if (existingDay?.messageId) {
-        try {
-          await api.editMessageText(
-            targetChatId,
-            existingDay.messageId,
-            `❌ Время ${
-              prayer === "Fajr" ? "утренних" : "вечерних"
-            } азкаров истекло. Вы пропустили чтение.`
-          );
-        } catch (error) {
-          console.log("Ошибка при обновлении сообщения:", error);
-        }
-      }
-      return;
-    }
+    // Отправляем финальное сообщение без клавиатуры
+    await api.sendMessage(
+      targetChatId,
+      `❌ Время ${
+        prayer === "Fajr" ? "утренних" : "вечерних"
+      } азкаров истекло. Вы пропустили чтение.`,
+      { parse_mode: "HTML" }
+    );
+    
+    return; // Не увеличиваем счетчик, так как уже сделали skipped
   }
 
-  if (existingDay?.messageId) {
-    try {
-      const timePassed = utcTime ? dayjs().diff(dayjs(utcTime), 'minute') : 0;
-      let timeMessage = "уже давно настало";
-      
-      if (timePassed >= 1) {
-        timeMessage = `уже ${timePassed} ${timePassed === 1 ? 'минуту' : timePassed < 5 ? 'минуты' : 'минут'} назад настало`;
-      }
-
-      await api.editMessageText(
-        targetChatId,
-        existingDay.messageId,
-        `🕌 Время ${
-          prayer === "Fajr" ? "утренних" : "вечерних"
-        } азкаров ${timeMessage}.\n\n<b>⚠️ Отметьтесь, пока не стало поздно!</b>`,
-        { parse_mode: "HTML" }
-      );
-      
-      await Day.updateOne(
-        { userId: user._id, date, type },
-        { $inc: { remindersSent: 1 } }
-      );
-      
-    } catch (error) {
-      console.log("Ошибка при обновлении сообщения:", error);
-      await api.sendMessage(
-        targetChatId,
-        `🕌 Время ${
-          prayer === "Fajr" ? "утренних" : "вечерних"
-        } азкаров уже давно настало.\n\n<b>⚠️ Отметьтесь, пока не стало поздно!</b>`,
-        { parse_mode: "HTML" }
-      );
-    }
-  }
+  // Увеличиваем счетчик напоминаний
+  await Day.updateOne(
+    { userId: user._id, date, type },
+    { $inc: { remindersSent: 1 } }
+  );
 }
 
 export async function sendAzkarNotification(
@@ -172,22 +162,44 @@ export async function sendAzkarNotification(
     },
     { upsert: true }
   );
-  // Планируем напоминание через 1 минуту только если это первое уведомление
+
   const updatedDay = await Day.findOne({ userId: user._id, date, type });
   if (
     updatedDay &&
     updatedDay.status === STATUS.PENDING &&
     updatedDay.remindersSent === 1
   ) {
-    const reminderISO = dayjs().add(1, "minute").utc().toISOString();
-    console.log("Планируем напоминание через 1 минуту:", reminderISO);
-    
+    const firstReminderISO = dayjs().add(1, "minute").utc().toISOString();
+    console.log("Планируем первое напоминание через час:", firstReminderISO);
+
     await scheduleAzkarNotify(
       user._id.toString(),
       telegramId,
       prayer,
       date,
-      reminderISO
+      firstReminderISO
+    );
+
+    const secondReminderISO = dayjs().add(2, "minutes").utc().toISOString();
+    console.log("Планируем второе напоминание через 2 часа:", secondReminderISO);
+
+    await scheduleAzkarNotify(
+      user._id.toString(),
+      telegramId,
+      prayer,
+      date,
+      secondReminderISO
+    );
+
+    const thirdReminderISO = dayjs().add(3, "minutes").utc().toISOString();
+    console.log("Планируем третье напоминание через 3 часа:", thirdReminderISO);
+
+    await scheduleAzkarNotify(
+      user._id.toString(),
+      telegramId,
+      prayer,
+      date,
+      thirdReminderISO
     );
   }
 }
@@ -257,7 +269,6 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
   const typeLabel = prayer === "Fajr" ? "утренних" : "вечерних";
   const dbType = prayerToType(prayer as "Fajr" | "Maghrib");
   const dayRecord = await Day.findOne({ userId: user._id, date, type: dbType });
-
 
   if (action === "skip") {
     await cancelAzkarNotification(

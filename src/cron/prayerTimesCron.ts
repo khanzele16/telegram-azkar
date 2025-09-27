@@ -282,19 +282,16 @@ export async function cancelAzkarNotification(
   prayer: PrayerType,
   date: string
 ): Promise<void> {
-  // Отменяем основное уведомление
   const mainJobId = jobKey(userId, prayer, date);
   const mainJob = await azkarQueue.getJob(mainJobId);
   if (mainJob) await mainJob.remove();
   
-  // Отменяем напоминание
   const notifyJobId = `${userId}:${prayer}:${date}:notify`;
   const notifyJob = await azkarQueue.getJob(notifyJobId);
   if (notifyJob) await notifyJob.remove();
 }
 
 export function startPrayerTimesCron(): void {
-  // Обновление расписания намазов
   cron.schedule(
     "10 0 26 * *",
     async () => {
@@ -307,9 +304,8 @@ export function startPrayerTimesCron(): void {
     { scheduled: true, timezone: "UTC" }
   );
 
-  // Проверка просроченных азкаров каждую минуту
   cron.schedule(
-    "* * * * *",
+    "*/30 * * * *",
     async () => {
       try {
         await checkExpiredAzkars();
@@ -322,11 +318,11 @@ export function startPrayerTimesCron(): void {
 }
 
 async function checkExpiredAzkars(): Promise<void> {
-  const fiveMinutesAgo = dayjs().subtract(5, 'minutes').toDate();
+  const threeHoursAgo = dayjs().subtract(3, 'hours').toDate();
   
   const expiredDays = await Day.find({
     status: "pending",
-    startedAt: { $lt: fiveMinutesAgo }
+    startedAt: { $lt: threeHoursAgo }
   });
 
   for (const day of expiredDays) {
@@ -341,7 +337,6 @@ async function checkExpiredAzkars(): Promise<void> {
       { $set: { status: "skipped" } }
     );
 
-    // Обновляем сообщение если есть messageId
     if (day.messageId) {
       try {
         await api.editMessageText(

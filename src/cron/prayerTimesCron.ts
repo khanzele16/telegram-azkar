@@ -307,9 +307,9 @@ export function startPrayerTimesCron(): void {
     { scheduled: true, timezone: "UTC" }
   );
 
-  // Проверка просроченных азкаров каждые 30 минут
+  // Проверка просроченных азкаров каждую минуту
   cron.schedule(
-    "*/30 * * * *",
+    "* * * * *",
     async () => {
       try {
         await checkExpiredAzkars();
@@ -322,11 +322,11 @@ export function startPrayerTimesCron(): void {
 }
 
 async function checkExpiredAzkars(): Promise<void> {
-  const fiveHoursAgo = dayjs().subtract(5, 'hours').toDate();
+  const fiveMinutesAgo = dayjs().subtract(5, 'minutes').toDate();
   
   const expiredDays = await Day.find({
     status: "pending",
-    startedAt: { $lt: fiveHoursAgo }
+    startedAt: { $lt: fiveMinutesAgo }
   });
 
   for (const day of expiredDays) {

@@ -70,16 +70,14 @@ export async function sendAzkarNotify(
     return;
   }
 
-  // Проверяем, прошло ли 5 часов - если да, ставим skipped
   if (utcTime) {
     const now = dayjs();
     const originalTime = dayjs(utcTime);
-    const timePassed = now.diff(originalTime, 'hour');
+    const timePassed = now.diff(originalTime, 'minute');
     
     if (timePassed >= 5) {
-      console.log(`Автоматически пропускаем азкары для пользователя ${telegramId} - прошло ${timePassed} часов`);
+      console.log(`Автоматически пропускаем азкары для пользователя ${telegramId} - прошло ${timePassed} минут`);
       
-      // Обновляем статус на skipped
       await Day.updateOne(
         { userId: user._id, date, type },
         { $set: { status: STATUS.SKIPPED } }
@@ -103,15 +101,13 @@ export async function sendAzkarNotify(
     }
   }
 
-  // Если есть messageId, обновляем существующее сообщение
   if (existingDay?.messageId) {
     try {
       const timePassed = utcTime ? dayjs().diff(dayjs(utcTime), 'minute') : 0;
       let timeMessage = "уже давно настало";
       
-      if (timePassed >= 60) {
-        const hours = Math.floor(timePassed / 60);
-        timeMessage = `уже ${hours} ${hours === 1 ? 'час' : hours < 5 ? 'часа' : 'часов'} назад настало`;
+      if (timePassed >= 1) {
+        timeMessage = `уже ${timePassed} ${timePassed === 1 ? 'минуту' : timePassed < 5 ? 'минуты' : 'минут'} назад настало`;
       }
 
       await api.editMessageText(
@@ -123,7 +119,6 @@ export async function sendAzkarNotify(
         { parse_mode: "HTML" }
       );
       
-      // Увеличиваем счетчик напоминаний
       await Day.updateOne(
         { userId: user._id, date, type },
         { $inc: { remindersSent: 1 } }
@@ -131,7 +126,6 @@ export async function sendAzkarNotify(
       
     } catch (error) {
       console.log("Ошибка при обновлении сообщения:", error);
-      // Если не удалось обновить, отправляем новое сообщение
       await api.sendMessage(
         targetChatId,
         `🕌 Время ${
@@ -178,15 +172,15 @@ export async function sendAzkarNotification(
     },
     { upsert: true }
   );
-  // Планируем напоминание через час только если это первое уведомление
+  // Планируем напоминание через 1 минуту только если это первое уведомление
   const updatedDay = await Day.findOne({ userId: user._id, date, type });
   if (
     updatedDay &&
     updatedDay.status === STATUS.PENDING &&
     updatedDay.remindersSent === 1
   ) {
-    const reminderISO = dayjs().add(1, "hour").utc().toISOString();
-    console.log("Планируем напоминание через час:", reminderISO);
+    const reminderISO = dayjs().add(1, "minute").utc().toISOString();
+    console.log("Планируем напоминание через 1 минуту:", reminderISO);
     
     await scheduleAzkarNotify(
       user._id.toString(),

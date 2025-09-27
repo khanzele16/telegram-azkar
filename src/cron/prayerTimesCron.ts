@@ -94,7 +94,7 @@ export async function scheduleAzkarNotification(
   if (oldJob) await oldJob.remove();
 
   await azkarQueue.add(
-    "send",
+    "azkar",
     {
       userId,
       telegramId,
@@ -252,13 +252,16 @@ export async function updatePrayerTimesAndSchedule(
 export const azkarWorker = new Worker(
   "azkar",
   async (job) => {
-    const { telegramId, prayer, date, utcTime, notify } = job.data as {
+    const { telegramId, prayer, date, utcTime, notify, userId } = job.data as {
       telegramId: number;
       prayer: PrayerType;
       date: string;
       utcTime: string;
       notify?: boolean;
+      userId?: string;
     };
+
+    console.log(`Обрабатываем задачу: ${job.name}, notify: ${notify}, prayer: ${prayer}, date: ${date}`);
 
     if (notify) {
       await sendAzkarNotify(telegramId, prayer, date);

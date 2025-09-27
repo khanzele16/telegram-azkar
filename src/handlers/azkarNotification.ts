@@ -115,6 +115,7 @@ export async function sendAzkarNotification(
     },
     { upsert: true }
   );
+  // Планируем напоминание через минуту только если это первое уведомление
   const updatedDay = await Day.findOne({ userId: user._id, date, type });
   if (
     updatedDay &&
@@ -122,7 +123,7 @@ export async function sendAzkarNotification(
     updatedDay.remindersSent === 1
   ) {
     const nextRunAtISO = dayjs().add(1, "minutes").utc().toISOString();
-    console.log(nextRunAtISO);
+    console.log("Планируем напоминание через минуту:", nextRunAtISO);
     await scheduleAzkarNotify(
       user._id.toString(),
       telegramId,

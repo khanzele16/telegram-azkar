@@ -148,8 +148,8 @@ export const locationConversation = async (
     );
 
     for (const timing of timingsToAdd) {
-      const fajrTime = dayjs.utc(timing.FajrUTC).tz(timing.timezone);
-      const maghribTime = dayjs.utc(timing.MaghribUTC).tz(timing.timezone);
+      const fajrTime = dayjs.utc(timing.FajrUTC).tz(timing.timezone).format();
+      const maghribTime = dayjs.utc(timing.MaghribUTC).tz(timing.timezone).format();
       console.log(
         `Fajr Time: ${fajrTime}, Today: ${todayChecker}, ${JSON.stringify(
           timing

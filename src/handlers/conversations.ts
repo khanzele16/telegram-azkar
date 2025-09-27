@@ -151,11 +151,11 @@ export const locationConversation = async (
       const fajrTime = dayjs.utc(timing.FajrUTC).tz(timing.timezone);
       const maghribTime = dayjs.utc(timing.MaghribUTC).tz(timing.timezone);
       console.log(
-        `Fajr Time: ${timing.FajrUTC}, Today: ${todayChecker}, ${JSON.stringify(
+        `Fajr Time: ${fajrTime}, Today: ${todayChecker}, ${JSON.stringify(
           timing
         )}`
       );
-      console.log(`Maghrib Time: ${timing.MaghribUTC}, Today: ${todayChecker}`);
+      console.log(`Maghrib Time: ${fajrTime}, Today: ${todayChecker}`);
       if (fajrTime.isAfter(todayChecker)) {
         await Day.create({
           userId: user!._id,

@@ -58,7 +58,6 @@ export async function sendAzkarNotify(
 ): Promise<void> {
   const targetChatId = chatId ?? telegramId;
   const user = await User.findOne({ telegramId });
-  const nextRunAtISO = dayjs().add(1, "hours").utc().toISOString();
 
   if (!user) return;
   const type = prayerToType(prayer);

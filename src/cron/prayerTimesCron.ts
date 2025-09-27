@@ -281,7 +281,7 @@ export async function postponeAzkarNotification(
 
   const delay = 60 * 60 * 1000;
   await azkarQueue.add(
-    "send",
+    "azkar",
     {
       userId,
       telegramId,

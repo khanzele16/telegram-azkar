@@ -68,7 +68,6 @@ export interface IDay {
   utcTime: string;
   startedAt?: Date;
   finishedAt?: Date;
-  reminderScheduled?: boolean;
   messageId: number;
   createdAt?: Date;
   updatedAt?: Date;

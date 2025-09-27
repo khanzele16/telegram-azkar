@@ -21,7 +21,6 @@ const Day = new Schema<IDay>(
     messageId: Number,
     startedAt: Date,
     finishedAt: Date,
-    reminderScheduled: { type: Boolean, default: false },
     timezone: { type: String, required: true },
   },
   { timestamps: true }

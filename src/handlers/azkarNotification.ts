@@ -51,6 +51,7 @@ export async function sendAzkarNotify(
   telegramId: number,
   prayer: "Fajr" | "Maghrib",
   date: string,
+  utcTime?: string,
   chatId?: number
 ): Promise<void> {
   const targetChatId = chatId ?? telegramId;
@@ -59,6 +60,7 @@ export async function sendAzkarNotify(
   if (!user) return;
   const type = prayerToType(prayer);
   const existingDay = await Day.findOne({ userId: user._id, date, type });
+  
   if (
     existingDay &&
     (existingDay.status === "read" ||
@@ -67,13 +69,78 @@ export async function sendAzkarNotify(
     console.log(`Пропускаем напоминание для пользователя ${telegramId}, статус: ${existingDay.status}`);
     return;
   }
-  await api.sendMessage(
-    targetChatId,
-    `🕌 Время ${
-      prayer === "Fajr" ? "утренних" : "вечерних"
-    } азкаров уже давно настало.\n\n<b>⚠️ Отметьтесь, пока не стало поздно!</b>`,
-    { parse_mode: "HTML" }
-  );
+
+  // Проверяем, прошло ли 5 часов - если да, ставим skipped
+  if (utcTime) {
+    const now = dayjs();
+    const originalTime = dayjs(utcTime);
+    const timePassed = now.diff(originalTime, 'hour');
+    
+    if (timePassed >= 5) {
+      console.log(`Автоматически пропускаем азкары для пользователя ${telegramId} - прошло ${timePassed} часов`);
+      
+      // Обновляем статус на skipped
+      await Day.updateOne(
+        { userId: user._id, date, type },
+        { $set: { status: STATUS.SKIPPED } }
+      );
+      
+      // Обновляем сообщение
+      if (existingDay?.messageId) {
+        try {
+          await api.editMessageText(
+            targetChatId,
+            existingDay.messageId,
+            `❌ Время ${
+              prayer === "Fajr" ? "утренних" : "вечерних"
+            } азкаров истекло. Вы пропустили чтение.`
+          );
+        } catch (error) {
+          console.log("Ошибка при обновлении сообщения:", error);
+        }
+      }
+      return;
+    }
+  }
+
+  // Если есть messageId, обновляем существующее сообщение
+  if (existingDay?.messageId) {
+    try {
+      const timePassed = utcTime ? dayjs().diff(dayjs(utcTime), 'minute') : 0;
+      let timeMessage = "уже давно настало";
+      
+      if (timePassed >= 60) {
+        const hours = Math.floor(timePassed / 60);
+        timeMessage = `уже ${hours} ${hours === 1 ? 'час' : hours < 5 ? 'часа' : 'часов'} назад настало`;
+      }
+
+      await api.editMessageText(
+        targetChatId,
+        existingDay.messageId,
+        `🕌 Время ${
+          prayer === "Fajr" ? "утренних" : "вечерних"
+        } азкаров ${timeMessage}.\n\n<b>⚠️ Отметьтесь, пока не стало поздно!</b>`,
+        { parse_mode: "HTML" }
+      );
+      
+      // Увеличиваем счетчик напоминаний
+      await Day.updateOne(
+        { userId: user._id, date, type },
+        { $inc: { remindersSent: 1 } }
+      );
+      
+    } catch (error) {
+      console.log("Ошибка при обновлении сообщения:", error);
+      // Если не удалось обновить, отправляем новое сообщение
+      await api.sendMessage(
+        targetChatId,
+        `🕌 Время ${
+          prayer === "Fajr" ? "утренних" : "вечерних"
+        } азкаров уже давно настало.\n\n<b>⚠️ Отметьтесь, пока не стало поздно!</b>`,
+        { parse_mode: "HTML" }
+      );
+    }
+  }
 }
 
 export async function sendAzkarNotification(
@@ -111,30 +178,22 @@ export async function sendAzkarNotification(
     },
     { upsert: true }
   );
-  // Планируем напоминание через минуту только если это первое уведомление
-  // и напоминание еще не было запланировано
+  // Планируем напоминание через час только если это первое уведомление
   const updatedDay = await Day.findOne({ userId: user._id, date, type });
   if (
     updatedDay &&
     updatedDay.status === STATUS.PENDING &&
-    updatedDay.remindersSent === 1 &&
-    !updatedDay.reminderScheduled
+    updatedDay.remindersSent === 1
   ) {
-    const nextRunAtISO = dayjs().add(1, "minutes").utc().toISOString();
-    console.log("Планируем напоминание через минуту:", nextRunAtISO);
-    
-    // Отмечаем, что напоминание запланировано
-    await Day.updateOne(
-      { userId: user._id, date, type },
-      { $set: { reminderScheduled: true } }
-    );
+    const reminderISO = dayjs().add(1, "hour").utc().toISOString();
+    console.log("Планируем напоминание через час:", reminderISO);
     
     await scheduleAzkarNotify(
       user._id.toString(),
       telegramId,
       prayer,
       date,
-      nextRunAtISO
+      reminderISO
     );
   }
 }

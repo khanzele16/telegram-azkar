@@ -11,6 +11,9 @@ import {
   sendAzkarNotification,
   sendAzkarNotify,
 } from "../handlers/azkarNotification";
+import { Api } from "grammy";
+
+const api = new Api(process.env.BOT_TOKEN as string);
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -49,7 +52,7 @@ export async function scheduleAzkarNotify(
   const now = dayjs().utc();
   const delay = runAt.diff(now);
 
-  console.log(delay);
+  console.log("Планируем минутное напоминание, delay:", delay);
 
   const jobId = `${userId}:${prayer}:${date}:notify`;
   const oldJob = await azkarQueue.getJob(jobId);
@@ -61,6 +64,7 @@ export async function scheduleAzkarNotify(
     { jobId, delay, attempts: 3, removeOnComplete: true, removeOnFail: 50 }
   );
 }
+
 
 export async function scheduleAzkarNotification(
   userId: string,
@@ -264,7 +268,7 @@ export const azkarWorker = new Worker(
     console.log(`Обрабатываем задачу: ${job.name}, notify: ${notify}, prayer: ${prayer}, date: ${date}`);
 
     if (notify) {
-      await sendAzkarNotify(telegramId, prayer, date);
+      await sendAzkarNotify(telegramId, prayer, date, utcTime);
     } else {
       await sendAzkarNotification(telegramId, prayer, date);
     }
@@ -290,6 +294,7 @@ export async function cancelAzkarNotification(
 }
 
 export function startPrayerTimesCron(): void {
+  // Обновление расписания намазов
   cron.schedule(
     "10 0 26 * *",
     async () => {
@@ -301,4 +306,56 @@ export function startPrayerTimesCron(): void {
     },
     { scheduled: true, timezone: "UTC" }
   );
+
+  // Проверка просроченных азкаров каждые 30 минут
+  cron.schedule(
+    "*/30 * * * *",
+    async () => {
+      try {
+        await checkExpiredAzkars();
+      } catch (e) {
+        console.error("Ошибка при проверке просроченных азкаров:", e);
+      }
+    },
+    { scheduled: true, timezone: "UTC" }
+  );
+}
+
+async function checkExpiredAzkars(): Promise<void> {
+  const fiveHoursAgo = dayjs().subtract(5, 'hours').toDate();
+  
+  const expiredDays = await Day.find({
+    status: "pending",
+    startedAt: { $lt: fiveHoursAgo }
+  });
+
+  for (const day of expiredDays) {
+    const user = await User.findById(day.userId);
+    if (!user) continue;
+
+    const prayer = day.type === "morning" ? "Fajr" : "Maghrib";
+    
+    // Обновляем статус на skipped
+    await Day.updateOne(
+      { _id: day._id },
+      { $set: { status: "skipped" } }
+    );
+
+    // Обновляем сообщение если есть messageId
+    if (day.messageId) {
+      try {
+        await api.editMessageText(
+          user.telegramId,
+          day.messageId,
+          `❌ Время ${
+            prayer === "Fajr" ? "утренних" : "вечерних"
+          } азкаров истекло. Вы пропустили чтение.`
+        );
+      } catch (error) {
+        console.log(`Ошибка при обновлении сообщения для пользователя ${user.telegramId}:`, error);
+      }
+    }
+
+    console.log(`Автоматически пропустили азкары для пользователя ${user.telegramId}, дата: ${day.date}, тип: ${day.type}`);
+  }
 }

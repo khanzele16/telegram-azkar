@@ -49,7 +49,7 @@ export async function scheduleAzkarNotify(
   const now = dayjs().utc();
   const delay = runAt.diff(now);
 
-  console.log(delay)
+  console.log(delay);
 
   const jobId = `${userId}:${prayer}:${date}`;
   const oldJob = await azkarQueue.getJob(jobId);
@@ -261,6 +261,7 @@ export const azkarWorker = new Worker(
     };
 
     if (notify) {
+      await sendAzkarNotification(telegramId, prayer, date);
       await sendAzkarNotify(telegramId, prayer, date);
     } else {
       await sendAzkarNotification(telegramId, prayer, date);

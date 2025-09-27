@@ -8,7 +8,6 @@ import { StreakService } from "../services/StreakService";
 import {
   postponeAzkarNotification,
   cancelAzkarNotification,
-  scheduleAzkarNotification,
   scheduleAzkarNotify,
 } from "../cron/prayerTimesCron";
 import { Types } from "mongoose";

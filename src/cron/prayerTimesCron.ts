@@ -35,9 +35,21 @@ export async function scheduleAzkarNotify(
   date: string,
   runAtISO: string
 ): Promise<void> {
+  const type = prayer === "Fajr" ? "morning" : "evening";
+
+  const existing = await Day.findOne({ userId, date, type });
+  if (
+    existing &&
+    (existing.status === "skipped" || existing.status === "read")
+  ) {
+    return;
+  }
+
   const runAt = dayjs(runAtISO).utc();
   const now = dayjs().utc();
   const delay = runAt.diff(now);
+
+  console.log(delay)
 
   const jobId = `${userId}:${prayer}:${date}`;
   const oldJob = await azkarQueue.getJob(jobId);

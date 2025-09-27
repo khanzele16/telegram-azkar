@@ -131,15 +131,15 @@ export async function sendAzkarNotification(
     updatedDay.status === STATUS.PENDING &&
     updatedDay.remindersSent === 1
   ) {
-    const nextRunAtISO = dayjs().add(1, "hours").utc().toISOString();
+    const nextRunAtISO = dayjs().add(1, "minutes").utc().toISOString();
     console.log(nextRunAtISO);
-    // await scheduleAzkarNotify(
-    //   user._id.toString(),
-    //   telegramId,
-    //   prayer,
-    //   date,
-    //   nextRunAtISO
-    // );
+    await scheduleAzkarNotify(
+      user._id.toString(),
+      telegramId,
+      prayer,
+      date,
+      nextRunAtISO
+    );
   }
 }
 

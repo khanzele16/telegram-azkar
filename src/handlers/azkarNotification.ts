@@ -78,14 +78,6 @@ export async function sendAzkarNotify(
     } азкаров уже давно настало.\n\n<b>⚠️ Отметьтесь, пока не стало поздно!</b>`,
     { parse_mode: "HTML" }
   );
-
-  await scheduleAzkarNotification(
-    user._id.toString(),
-    telegramId,
-    prayer,
-    date,
-    nextRunAtISO
-  );
 }
 
 export async function sendAzkarNotification(

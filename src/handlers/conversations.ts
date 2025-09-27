@@ -148,8 +148,8 @@ export const locationConversation = async (
     );
 
     for (const timing of timingsToAdd) {
-      const fajrTime = dayjs.tz(timing.FajrUTC, timing.timezone);
-      const maghribTime = dayjs.tz(timing.MaghribUTC, timing.timezone);
+      const fajrTime = dayjs.tz(timing.FajrUTC, timing.timezone).toISOString();
+      const maghribTime = dayjs.tz(timing.MaghribUTC, timing.timezone).toISOString();
       console.log(
         `Fajr Time: ${fajrTime}, Today: ${todayChecker}, ${fajrTime.isAfter(
           todayChecker
@@ -160,26 +160,26 @@ export const locationConversation = async (
           todayChecker
         )}`
       );
-      if (fajrTime.isAfter(todayChecker)) {
-        await Day.create({
-          userId: user!._id,
-          date: timing.date,
-          type: "morning",
-          utcTime: timing.FajrUTC,
-          status: "pending",
-          timezone: timing.timezone,
-        });
-      }
-      if (maghribTime.isAfter(todayChecker)) {
-        await Day.create({
-          userId: user!._id,
-          date: timing.date,
-          type: "evening",
-          utcTime: timing.MaghribUTC,
-          status: "pending",
-          timezone: timing.timezone,
-        });
-      }
+      // if (fajrTime.isAfter(todayChecker)) {
+      //   await Day.create({
+      //     userId: user!._id,
+      //     date: timing.date,
+      //     type: "morning",
+      //     utcTime: timing.FajrUTC,
+      //     status: "pending",
+      //     timezone: timing.timezone,
+      //   });
+      // }
+      // if (maghribTime.isAfter(todayChecker)) {
+      //   await Day.create({
+      //     userId: user!._id,
+      //     date: timing.date,
+      //     type: "evening",
+      //     utcTime: timing.MaghribUTC,
+      //     status: "pending",
+      //     timezone: timing.timezone,
+      //   });
+      // }
     }
 
     await updatePrayerTimesAndSchedule(false, ctx.from?.id);

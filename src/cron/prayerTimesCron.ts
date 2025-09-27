@@ -56,7 +56,7 @@ export async function scheduleAzkarNotify(
   if (oldJob) await oldJob.remove();
 
   await azkarQueue.add(
-    "notify",
+    "azkar",
     { telegramId, prayer, date, utcTime: runAt.toISOString(), notify: true },
     { jobId, delay, attempts: 3, removeOnComplete: true, removeOnFail: 50 }
   );

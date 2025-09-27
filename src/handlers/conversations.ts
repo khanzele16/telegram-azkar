@@ -149,16 +149,14 @@ export const locationConversation = async (
 
     for (const timing of timingsToAdd) {
       const fajrTime = dayjs.tz(timing.FajrUTC, timing.timezone).toISOString();
-      const maghribTime = dayjs.tz(timing.MaghribUTC, timing.timezone).toISOString();
+      const maghribTime = dayjs
+        .tz(timing.MaghribUTC, timing.timezone)
+        .toISOString();
       console.log(
-        `Fajr Time: ${fajrTime}, Today: ${todayChecker}, ${fajrTime.isAfter(
-          todayChecker
-        )}, ${JSON.stringify(timing)}`
+        `Fajr Time: ${fajrTime}, Today: ${todayChecker}, ${JSON.stringify(timing)}`
       );
       console.log(
-        `Maghrib Time: ${maghribTime}, Today: ${todayChecker}, ${maghribTime.isAfter(
-          todayChecker
-        )}`
+        `Maghrib Time: ${maghribTime}, Today: ${todayChecker}`
       );
       // if (fajrTime.isAfter(todayChecker)) {
       //   await Day.create({

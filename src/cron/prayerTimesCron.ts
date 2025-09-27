@@ -261,7 +261,6 @@ export const azkarWorker = new Worker(
     };
 
     if (notify) {
-      await sendAzkarNotification(telegramId, prayer, date);
       await sendAzkarNotify(telegramId, prayer, date);
     } else {
       await sendAzkarNotification(telegramId, prayer, date);

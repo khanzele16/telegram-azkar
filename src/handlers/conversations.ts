@@ -153,10 +153,10 @@ export const locationConversation = async (
         .tz(timing.MaghribUTC, timing.timezone)
         .toISOString();
       console.log(
-        `Fajr Time: ${fajrTime}, Today: ${todayChecker}, ${JSON.stringify(timing)}`
+        `Fajr Time: ${timing.FajrUTC}, Today: ${todayChecker}, ${JSON.stringify(timing)}`
       );
       console.log(
-        `Maghrib Time: ${maghribTime}, Today: ${todayChecker}`
+        `Maghrib Time: ${timing.MaghribUTC}, Today: ${todayChecker}`
       );
       // if (fajrTime.isAfter(todayChecker)) {
       //   await Day.create({

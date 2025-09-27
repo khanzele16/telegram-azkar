@@ -71,20 +71,9 @@ export async function sendAzkarNotify(
     return;
   }
 
-  // Проверяем, сколько напоминаний уже отправлено
   const currentReminders = existingDay?.remindersSent || 0;
-  
-  if (currentReminders === 0) {
-    // Первое напоминание - отправляем новое сообщение
-    await api.sendMessage(
-      targetChatId,
-      `🕌 Время ${
-        prayer === "Fajr" ? "утренних" : "вечерних"
-      } азкаров.\n\n<b>⚠️ Отметьтесь, пока не стало поздно!</b>`,
-      { parse_mode: "HTML" }
-    );
-  } else if (currentReminders === 1) {
-    // Второе напоминание - отправляем новое сообщение
+
+  if (currentReminders === 1) {
     await api.sendMessage(
       targetChatId,
       `🕌 Время ${
@@ -93,7 +82,6 @@ export async function sendAzkarNotify(
       { parse_mode: "HTML" }
     );
   } else if (currentReminders === 2) {
-    // Третье напоминание - отправляем новое сообщение
     await api.sendMessage(
       targetChatId,
       `🕌 Время ${
@@ -102,25 +90,34 @@ export async function sendAzkarNotify(
       { parse_mode: "HTML" }
     );
   } else if (currentReminders >= 3) {
-    // Четвертое напоминание - делаем skipped и обновляем последнее сообщение
     await Day.updateOne(
       { userId: user._id, date, type },
       { $set: { status: STATUS.SKIPPED } }
     );
-    
-    // Отправляем финальное сообщение без клавиатуры
-    await api.sendMessage(
+
+    if (!existingDay) {
+      await api.sendMessage(
+        targetChatId,
+        `❌ Время ${
+          prayer === "Fajr" ? "утренних" : "вечерних"
+        } азкаров истекло. Вы пропустили чтение.`,
+        { parse_mode: "HTML" }
+      );
+      return;
+    }
+
+    await api.editMessageText(
       targetChatId,
+      existingDay.messageId,
       `❌ Время ${
         prayer === "Fajr" ? "утренних" : "вечерних"
       } азкаров истекло. Вы пропустили чтение.`,
       { parse_mode: "HTML" }
     );
-    
-    return; // Не увеличиваем счетчик, так как уже сделали skipped
+
+    return;
   }
 
-  // Увеличиваем счетчик напоминаний
   await Day.updateOne(
     { userId: user._id, date, type },
     { $inc: { remindersSent: 1 } }
@@ -181,7 +178,10 @@ export async function sendAzkarNotification(
     );
 
     const secondReminderISO = dayjs().add(2, "minutes").utc().toISOString();
-    console.log("Планируем второе напоминание через 2 часа:", secondReminderISO);
+    console.log(
+      "Планируем второе напоминание через 2 часа:",
+      secondReminderISO
+    );
 
     await scheduleAzkarNotify(
       user._id.toString(),

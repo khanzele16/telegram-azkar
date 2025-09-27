@@ -6,7 +6,6 @@ import timezone from "dayjs/plugin/timezone";
 import { Api, InlineKeyboard } from "grammy";
 import { StreakService } from "../services/StreakService";
 import {
-  postponeAzkarNotification,
   cancelAzkarNotification,
   scheduleAzkarNotify,
 } from "../cron/prayerTimesCron";
@@ -25,7 +24,6 @@ const STATUS = {
   PENDING: "pending",
   READ: "read",
   SKIPPED: "skipped",
-  POSTPONED: "postponed",
 } as const;
 
 const TYPE = {
@@ -64,9 +62,9 @@ export async function sendAzkarNotify(
   if (
     existingDay &&
     (existingDay.status === "read" ||
-      existingDay.status === "postponed" ||
       existingDay.status === "skipped")
   ) {
+    console.log(`Пропускаем напоминание для пользователя ${telegramId}, статус: ${existingDay.status}`);
     return;
   }
   await api.sendMessage(
@@ -98,8 +96,6 @@ export async function sendAzkarNotification(
   }
   const keyboard = new InlineKeyboard()
     .text("📖 Прочитать", `azkarnotify:read:${prayer}:${date}`)
-    .text("⏰ Отложить (1 ч)", `azkarnotify:postpone:${prayer}:${date}`)
-    .row()
     .text("❌ Сегодня не буду", `azkarnotify:skip:${prayer}:${date}`);
   const ctx_message = await api.sendMessage(
     targetChatId,
@@ -116,14 +112,23 @@ export async function sendAzkarNotification(
     { upsert: true }
   );
   // Планируем напоминание через минуту только если это первое уведомление
+  // и напоминание еще не было запланировано
   const updatedDay = await Day.findOne({ userId: user._id, date, type });
   if (
     updatedDay &&
     updatedDay.status === STATUS.PENDING &&
-    updatedDay.remindersSent === 1
+    updatedDay.remindersSent === 1 &&
+    !updatedDay.reminderScheduled
   ) {
     const nextRunAtISO = dayjs().add(1, "minutes").utc().toISOString();
     console.log("Планируем напоминание через минуту:", nextRunAtISO);
+    
+    // Отмечаем, что напоминание запланировано
+    await Day.updateOne(
+      { userId: user._id, date, type },
+      { $set: { reminderScheduled: true } }
+    );
+    
     await scheduleAzkarNotify(
       user._id.toString(),
       telegramId,
@@ -200,35 +205,6 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
   const dbType = prayerToType(prayer as "Fajr" | "Maghrib");
   const dayRecord = await Day.findOne({ userId: user._id, date, type: dbType });
 
-  if (action === "postpone") {
-    await postponeAzkarNotification(
-      user._id.toString(),
-      ctx.from.id,
-      prayer as "Fajr" | "Maghrib",
-      date
-    );
-    await Day.updateOne(
-      { userId: user._id, date, type: dbType },
-      {
-        $set: {
-          status: STATUS.POSTPONED,
-          postponedUntil: new Date(Date.now() + 3600_000),
-        },
-      },
-      { upsert: true }
-    );
-    if (dayRecord?.messageId && ctx.chat) {
-      try {
-        await ctx.api.editMessageText(
-          ctx.chat.id,
-          dayRecord.messageId,
-          `⏰ Вы отложили чтение ${typeLabel} азкаров на 1 час`
-        );
-      } catch {}
-    }
-    await ctx.answerCallbackQuery("⏰ Отложено на 1 час");
-    return;
-  }
 
   if (action === "skip") {
     await cancelAzkarNotification(

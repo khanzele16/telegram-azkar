@@ -10,8 +10,8 @@ dayjs.extend(isoWeek);
 dayjs.locale("ru");
 
 function getDayEmoji(
-  morningStatus?: "read" | "skipped" | "postponed" | "pending",
-  eveningStatus?: "read" | "skipped" | "postponed" | "pending"
+  morningStatus?: "read" | "skipped" | "pending",
+  eveningStatus?: "read" | "skipped" | "pending"
 ): string {
   if (morningStatus === "read" && eveningStatus === "read") return "✅";
   if (morningStatus === "read" && eveningStatus !== "read") return "☀️";

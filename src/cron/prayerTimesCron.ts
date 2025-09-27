@@ -51,7 +51,7 @@ export async function scheduleAzkarNotify(
 
   console.log(delay);
 
-  const jobId = `${userId}:${prayer}:${date}`;
+  const jobId = `${userId}:${prayer}:${date}:notify`;
   const oldJob = await azkarQueue.getJob(jobId);
   if (oldJob) await oldJob.remove();
 
@@ -272,39 +272,21 @@ export const azkarWorker = new Worker(
   { connection, concurrency: 5 }
 );
 
-export async function postponeAzkarNotification(
-  userId: string,
-  telegramId: number,
-  prayer: PrayerType,
-  date: string
-): Promise<void> {
-  const jobId = jobKey(userId, prayer, date);
-  const oldJob = await azkarQueue.getJob(jobId);
-  if (oldJob) await oldJob.remove();
-
-  const delay = 60 * 60 * 1000;
-  await azkarQueue.add(
-    "azkar",
-    {
-      userId,
-      telegramId,
-      prayer,
-      date,
-      utcTime: new Date().toISOString(),
-      notify: false,
-    },
-    { jobId, delay, attempts: 3, removeOnComplete: true, removeOnFail: 50 }
-  );
-}
 
 export async function cancelAzkarNotification(
   userId: string,
   prayer: PrayerType,
   date: string
 ): Promise<void> {
-  const jobId = jobKey(userId, prayer, date);
-  const oldJob = await azkarQueue.getJob(jobId);
-  if (oldJob) await oldJob.remove();
+  // Отменяем основное уведомление
+  const mainJobId = jobKey(userId, prayer, date);
+  const mainJob = await azkarQueue.getJob(mainJobId);
+  if (mainJob) await mainJob.remove();
+  
+  // Отменяем напоминание
+  const notifyJobId = `${userId}:${prayer}:${date}:notify`;
+  const notifyJob = await azkarQueue.getJob(notifyJobId);
+  if (notifyJob) await notifyJob.remove();
 }
 
 export function startPrayerTimesCron(): void {

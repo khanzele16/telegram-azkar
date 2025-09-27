@@ -5,7 +5,7 @@ import Day from "../database/models/Day";
 
 dayjs.extend(isoWeek);
 
-export type Status = "read" | "skipped" | "postponed" | "pending";
+export type Status = "read" | "skipped" | "pending";
 
 export interface ICalendarDay {
   date: string;

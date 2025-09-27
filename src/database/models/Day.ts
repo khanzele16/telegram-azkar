@@ -14,14 +14,14 @@ const Day = new Schema<IDay>(
     type: { type: String, enum: ["morning", "evening"], required: true },
     status: {
       type: String,
-      enum: ["pending", "read", "skipped", "postponed"],
+      enum: ["pending", "read", "skipped"],
       default: "pending",
     },
     utcTime: { type: String, required: true },
     messageId: Number,
     startedAt: Date,
     finishedAt: Date,
-    postponedUntil: Date,
+    reminderScheduled: { type: Boolean, default: false },
     timezone: { type: String, required: true },
   },
   { timestamps: true }

@@ -64,11 +64,11 @@ export interface IDay {
   remindersSent: number;
   date: string;
   type: "morning" | "evening";
-  status: "pending" | "read" | "skipped" | "postponed";
+  status: "pending" | "read" | "skipped";
   utcTime: string;
   startedAt?: Date;
   finishedAt?: Date;
-  postponedUntil?: Date;
+  reminderScheduled?: boolean;
   messageId: number;
   createdAt?: Date;
   updatedAt?: Date;

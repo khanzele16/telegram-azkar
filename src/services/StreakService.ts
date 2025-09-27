@@ -66,21 +66,6 @@ export class StreakService {
     });
   }
 
-  static async markPostponed(
-    userId: Types.ObjectId,
-    date: string,
-    type: "morning" | "evening",
-    until: Date
-  ) {
-    await Day.updateOne(
-      { userId, date, type },
-      {
-        $setOnInsert: { startedAt: new Date() },
-        $set: { status: "postponed", postponedUntil: until },
-      },
-      { upsert: true }
-    );
-  }
 
   static async getProfileStats(userId: Types.ObjectId) {
     const user = await User.findById(userId);

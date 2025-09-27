@@ -36,7 +36,8 @@ export async function scheduleAzkarNotify(
   telegramId: number,
   prayer: PrayerType,
   date: string,
-  runAtISO: string
+  runAtISO: string,
+  reminderNumber?: number
 ): Promise<void> {
   const type = prayer === "Fajr" ? "morning" : "evening";
 
@@ -52,9 +53,11 @@ export async function scheduleAzkarNotify(
   const now = dayjs().utc();
   const delay = runAt.diff(now);
 
-  console.log("Планируем минутное напоминание, delay:", delay);
+  console.log(`Планируем напоминание #${reminderNumber || 1}, delay:`, delay);
 
-  const jobId = `${userId}:${prayer}:${date}:notify`;
+  const jobId = reminderNumber 
+    ? `${userId}:${prayer}:${date}:notify:${reminderNumber}`
+    : `${userId}:${prayer}:${date}:notify`;
   const oldJob = await azkarQueue.getJob(jobId);
   if (oldJob) await oldJob.remove();
 
@@ -282,13 +285,22 @@ export async function cancelAzkarNotification(
   prayer: PrayerType,
   date: string
 ): Promise<void> {
+  // Отменяем основное уведомление
   const mainJobId = jobKey(userId, prayer, date);
   const mainJob = await azkarQueue.getJob(mainJobId);
   if (mainJob) await mainJob.remove();
   
-  const notifyJobId = `${userId}:${prayer}:${date}:notify`;
-  const notifyJob = await azkarQueue.getJob(notifyJobId);
-  if (notifyJob) await notifyJob.remove();
+  // Отменяем все напоминания (1, 2, 3)
+  for (let i = 1; i <= 3; i++) {
+    const notifyJobId = `${userId}:${prayer}:${date}:notify:${i}`;
+    const notifyJob = await azkarQueue.getJob(notifyJobId);
+    if (notifyJob) await notifyJob.remove();
+  }
+  
+  // Отменяем старое напоминание (без номера)
+  const oldNotifyJobId = `${userId}:${prayer}:${date}:notify`;
+  const oldNotifyJob = await azkarQueue.getJob(oldNotifyJobId);
+  if (oldNotifyJob) await oldNotifyJob.remove();
 }
 
 export function startPrayerTimesCron(): void {

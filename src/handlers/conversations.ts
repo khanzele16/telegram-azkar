@@ -148,36 +148,34 @@ export const locationConversation = async (
     );
 
     for (const timing of timingsToAdd) {
-      const fajrTime = dayjs.tz(timing.FajrUTC, timing.timezone).toISOString();
-      const maghribTime = dayjs
-        .tz(timing.MaghribUTC, timing.timezone)
-        .toISOString();
+      const fajrTime = dayjs.utc(timing.FajrUTC).tz(timing.timezone);
+      const maghribTime = dayjs.utc(timing.MaghribUTC).tz(timing.timezone);
       console.log(
-        `Fajr Time: ${timing.FajrUTC}, Today: ${todayChecker}, ${JSON.stringify(timing)}`
+        `Fajr Time: ${timing.FajrUTC}, Today: ${todayChecker}, ${JSON.stringify(
+          timing
+        )}`
       );
-      console.log(
-        `Maghrib Time: ${timing.MaghribUTC}, Today: ${todayChecker}`
-      );
-      // if (fajrTime.isAfter(todayChecker)) {
-      //   await Day.create({
-      //     userId: user!._id,
-      //     date: timing.date,
-      //     type: "morning",
-      //     utcTime: timing.FajrUTC,
-      //     status: "pending",
-      //     timezone: timing.timezone,
-      //   });
-      // }
-      // if (maghribTime.isAfter(todayChecker)) {
-      //   await Day.create({
-      //     userId: user!._id,
-      //     date: timing.date,
-      //     type: "evening",
-      //     utcTime: timing.MaghribUTC,
-      //     status: "pending",
-      //     timezone: timing.timezone,
-      //   });
-      // }
+      console.log(`Maghrib Time: ${timing.MaghribUTC}, Today: ${todayChecker}`);
+      if (fajrTime.isAfter(todayChecker)) {
+        await Day.create({
+          userId: user!._id,
+          date: timing.date,
+          type: "morning",
+          utcTime: timing.FajrUTC,
+          status: "pending",
+          timezone: timing.timezone,
+        });
+      }
+      if (maghribTime.isAfter(todayChecker)) {
+        await Day.create({
+          userId: user!._id,
+          date: timing.date,
+          type: "evening",
+          utcTime: timing.MaghribUTC,
+          status: "pending",
+          timezone: timing.timezone,
+        });
+      }
     }
 
     await updatePrayerTimesAndSchedule(false, ctx.from?.id);

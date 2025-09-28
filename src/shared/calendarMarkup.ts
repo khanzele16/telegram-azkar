@@ -58,7 +58,6 @@ export const generateCalendarMarkup = (
     const date = currentMonth.date(day).format("DD-MM-YYYY");
     const item = calendar.find((r) => r.date === date);
 
-    console.log(item)
     const emoji = getDayEmoji(item?.morningStatus, item?.eveningStatus);
 
     kb.text(`${day.toString().padStart(2, "0")}${emoji}`, "empty");

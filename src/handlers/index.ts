@@ -37,7 +37,6 @@ export async function statsHandler(ctx: MyContext): Promise<void> {
       currentYear,
       currentMonth
     );
-    console.log(calendar)
 
     const keyboard = generateCalendarMarkup(
       calendar,

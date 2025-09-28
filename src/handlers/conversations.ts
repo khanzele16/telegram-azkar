@@ -75,7 +75,6 @@ export const locationConversation = async (
       .minute(10)
       .second(0)
       .millisecond(0);
-    console.log(checkDate);
     let prayTimes: IPrayTime[] | null;
     const month = dayjs().month() + 1;
     if (dayjs().isAfter(checkDate)) {

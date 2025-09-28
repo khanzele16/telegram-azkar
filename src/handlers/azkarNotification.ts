@@ -184,9 +184,9 @@ export async function sendAzkarNotification(
       1
     );
 
-    const secondReminderISO = dayjs().add(2, "hours").utc().toISOString();
+    const secondReminderISO = dayjs().add(4, "hours").utc().toISOString();
     console.log(
-      "Планируем второе напоминание через 2 часа:",
+      "Планируем второе напоминание через 4 часа:",
       secondReminderISO
     );
 
@@ -199,8 +199,8 @@ export async function sendAzkarNotification(
       2
     );
 
-    const thirdReminderISO = dayjs().add(2, "hours").utc().toISOString();
-    console.log("Планируем третье напоминание через 2 часа:", thirdReminderISO);
+    const thirdReminderISO = dayjs().add(6, "hours").utc().toISOString();
+    console.log("Планируем третье напоминание через 6 часов:", thirdReminderISO);
 
     await scheduleAzkarNotify(
       user._id.toString(),

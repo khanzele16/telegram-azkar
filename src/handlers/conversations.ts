@@ -79,7 +79,7 @@ export const locationConversation = async (
     let prayTimes: IPrayTime[] | null;
     const month = dayjs().month() + 1;
     if (dayjs().isAfter(checkDate)) {
-      const secondMonth = dayjs().month() + 1;
+      const secondMonth = dayjs().month() + 2;
       prayTimes = await getPrayTime(
         latitude.toString(),
         longitude.toString(),

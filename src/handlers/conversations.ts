@@ -236,18 +236,15 @@ export async function broadcastConversation(
   try {
     if (photo) {
       await ctx.replyWithPhoto(photo, {
-        caption: `<b>📢 Предпросмотр сообщения рассылки:</b>\n\n${text.text}\n\nНачать рассылку?`,
+        caption: `${text.text}\n\nНачать рассылку?`,
         caption_entities: text.entities,
         reply_markup: MailingKeyboard,
       });
     } else {
-      await ctx.reply(
-        `<b>📢 Предпросмотр сообщения рассылки:</b>\n\n${text.text}\n\nНачать рассылку?`,
-        {
-          reply_markup: MailingKeyboard,
-          entities: text.entities,
-        }
-      );
+      await ctx.reply(`${text.text}\n\nНачать рассылку?`, {
+        reply_markup: MailingKeyboard,
+        entities: text.entities,
+      });
     }
   } catch (err) {
     await ctx.reply("❌ Ошибка при обработке сообщения для рассылки");
@@ -278,13 +275,12 @@ export async function broadcastConversation(
     try {
       if (photo) {
         await ctx.api.sendPhoto(user.telegramId, photo, {
-          parse_mode: "HTML",
           caption_entities: text.entities,
           caption: text.text,
         });
       } else {
         await ctx.api.sendMessage(user.telegramId, text.text, {
-          parse_mode: "HTML",
+          entities: text.entities,
         });
       }
       success++;

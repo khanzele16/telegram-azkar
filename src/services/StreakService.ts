@@ -1,8 +1,13 @@
 import Day from "../database/models/Day";
 import User from "../database/models/User";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import { Types } from "mongoose";
 import dayjs from "dayjs";
 import { getLocalDateFromUTC } from "../shared";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export class StreakService {
   static async markRead(
@@ -11,8 +16,9 @@ export class StreakService {
     type: "morning" | "evening"
   ) {
     const localDate = getLocalDateFromUTC(utcDateString);
+    let newStreak = 0;
 
-    await Day.updateOne(
+    const updatedDay = await Day.findOneAndUpdate(
       { userId, date: localDate, type },
       {
         $setOnInsert: { startedAt: new Date() },
@@ -24,26 +30,52 @@ export class StreakService {
     const user = await User.findById(userId);
     if (!user) return;
 
-    let newStreak = 1;
-    if (user.lastReadAt) {
-      const last = dayjs(user.lastReadAt);
-      const today = dayjs();
-      const diffDays = today.diff(last, "day");
-      if (diffDays === 1) {
-        newStreak = (user.currentStreak?.value || 0) + 1;
-      }
+    if (updatedDay) {
+      user.lastReadAt = dayjs().tz(updatedDay.timezone).toDate();
+      await user.save();
     }
 
-    await User.updateOne(
-      { _id: userId },
-      {
-        $set: {
-          lastReadAt: new Date(),
-          "currentStreak.value": newStreak,
-          "currentStreak.lastUpdated": new Date(),
-        },
-      }
-    );
+    const morning = await Day.findOne({
+      userId,
+      date: localDate,
+      type: "morning",
+      status: "read",
+    });
+    const evening = await Day.findOne({
+      userId,
+      date: localDate,
+      type: "evening",
+      status: "read",
+    });
+
+    if (morning && evening) {
+      newStreak += 1;
+    }
+
+    if (updatedDay) {
+      await User.updateOne(
+        { _id: userId },
+        {
+          $set: {
+            lastReadAt: dayjs().tz(updatedDay.timezone).toDate(),
+            "currentStreak.value": newStreak,
+            "currentStreak.lastUpdated": dayjs()
+              .tz(updatedDay.timezone)
+              .toDate(),
+          },
+        }
+      );
+    } else {
+      await User.updateOne(
+        { _id: userId },
+        {
+          $set: {
+            "currentStreak.value": newStreak,
+            "currentStreak.lastUpdated": new Date(),
+          },
+        }
+      );
+    }
   }
 
   static async markSkipped(
@@ -65,7 +97,6 @@ export class StreakService {
       "currentStreak.lastUpdated": new Date(),
     });
   }
-
 
   static async getProfileStats(userId: Types.ObjectId) {
     const user = await User.findById(userId);

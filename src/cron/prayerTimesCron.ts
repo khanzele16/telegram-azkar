@@ -100,7 +100,7 @@ export async function scheduleAzkarNotification(
   const oldJob = await azkarQueue.getJob(jobId);
   if (oldJob) await oldJob.remove();
 
-  await azkarQueue.add(
+  await azkarQueue.add( 
     "azkar",
     {
       userId,

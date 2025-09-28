@@ -73,28 +73,20 @@ export async function sendAzkarNotify(
 
   const currentReminders = existingDay?.remindersSent || 0;
 
-  if (currentReminders === 0) {
+  if (currentReminders === 1) {
     await api.sendMessage(
       targetChatId,
-      `🕌 Время ${
-        prayer === "Fajr" ? "утренних" : "вечерних"
-      } азкаров, это первое напоминание.\n\n<b>⚠️ Отметьтесь, пока не стало поздно!</b>`,
-      { parse_mode: "HTML" }
-    );
-  } else if (currentReminders === 1) {
-    await api.sendMessage(
-      targetChatId,
-      `🕌 Время ${
-        prayer === "Fajr" ? "утренних" : "вечерних"
-      } азкаров, это второе напоминание.\n\n<b>⚠️ Отметьтесь, пока не стало поздно!</b>`,
+      `⏰ Не забудьте прочитать ${
+        prayer === "Fajr" ? "утренние" : "вечерние"
+      } азкары! Это важно для вашего стрика.`,
       { parse_mode: "HTML" }
     );
   } else if (currentReminders === 2) {
     await api.sendMessage(
       targetChatId,
-      `🕌 Время ${
-        prayer === "Fajr" ? "утренних" : "вечерних"
-      } азкаров, это второе напоминание.\n\n<b>⚠️ Отметьтесь, пока не стало поздно!</b>`,
+      `🕌 Последнее напоминание на сегодня: ${
+        prayer === "Fajr" ? "утренние" : "вечерние"
+      } азкары ждут вашего внимания.\n\nПоддержите свой стрик и завершите день с пользой!`,
       { parse_mode: "HTML" }
     );
   } else if (currentReminders >= 3) {
@@ -151,10 +143,18 @@ export async function sendAzkarNotification(
     .text("📖 Прочитать", `azkarnotify:read:${prayer}:${date}`)
     .row()
     .text("❌ Сегодня не буду", `azkarnotify:skip:${prayer}:${date}`);
+
   const ctx_message = await api.sendMessage(
     targetChatId,
-    `🕌 Время ${prayer === "Fajr" ? "утренних" : "вечерних"} азкаров.`,
-    { reply_markup: keyboard }
+    `🕌 Время ${prayer === "Fajr" ? "утренних" : "вечерних"} азкаров!\n\n` +
+      `✨ Поддержите свой стрик и ${
+        prayer === "Fajr" ? "начните день" : "завершите день"
+      } с полезной привычки.\n` +
+      `📖 Нажмите "Прочитать", чтобы отметить азкары и продлить ваш стрик.`,
+    {
+      reply_markup: keyboard,
+      parse_mode: "HTML",
+    }
   );
   await Day.updateOne(
     { userId: user._id, date, type },
@@ -172,11 +172,8 @@ export async function sendAzkarNotification(
     updatedDay.status === STATUS.PENDING &&
     updatedDay.remindersSent === 1
   ) {
-    const firstReminderISO = dayjs().add(1, "minute").utc().toISOString();
-    console.log(
-      "Планируем первое напоминание через 1 минуту:",
-      firstReminderISO
-    );
+    const firstReminderISO = dayjs().add(2, "hours").utc().toISOString();
+    console.log("Планируем первое напоминание через 2 часа:", firstReminderISO);
 
     await scheduleAzkarNotify(
       user._id.toString(),
@@ -187,9 +184,9 @@ export async function sendAzkarNotification(
       1
     );
 
-    const secondReminderISO = dayjs().add(2, "minutes").utc().toISOString();
+    const secondReminderISO = dayjs().add(2, "hours").utc().toISOString();
     console.log(
-      "Планируем второе напоминание через 2 минуты:",
+      "Планируем второе напоминание через 2 часа:",
       secondReminderISO
     );
 
@@ -202,11 +199,8 @@ export async function sendAzkarNotification(
       2
     );
 
-    const thirdReminderISO = dayjs().add(3, "minutes").utc().toISOString();
-    console.log(
-      "Планируем третье напоминание через 3 минуты:",
-      thirdReminderISO
-    );
+    const thirdReminderISO = dayjs().add(2, "hours").utc().toISOString();
+    console.log("Планируем третье напоминание через 2 часа:", thirdReminderISO);
 
     await scheduleAzkarNotify(
       user._id.toString(),

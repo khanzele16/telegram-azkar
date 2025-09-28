@@ -45,11 +45,11 @@ export const getPrayTime = async (
             Maghrib: item.timings.Maghrib.replace(/\s*\(.*?\)\s*/g, ""),
           };
         })
-        // .filter((item) => {
-        //   const [day, month, year] = item.date.split("-");
-        //   const itemDay = dayjs(`${year}-${month}-${day}`);
-        //   return itemDay.isSame(today, "day") || itemDay.isAfter(today, "day");
-        // });
+        .filter((item) => {
+          const [day, month, year] = item.date.split("-");
+          const itemDay = dayjs(`${year}-${month}-${day}`);
+          return itemDay.isSame(today, "day") || itemDay.isAfter(today, "day");
+        });
       allResults.push(...mapped);
     }
     return allResults;

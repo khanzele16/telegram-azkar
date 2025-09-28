@@ -237,7 +237,6 @@ export async function broadcastConversation(
     if (photo) {
       await ctx.replyWithPhoto(photo, {
         caption: `<b>📢 Предпросмотр сообщения рассылки:</b>\n\n${text.text}\n\nНачать рассылку?`,
-        parse_mode: "HTML",
         caption_entities: text.entities,
         reply_markup: MailingKeyboard,
       });
@@ -247,7 +246,6 @@ export async function broadcastConversation(
         {
           reply_markup: MailingKeyboard,
           entities: text.entities,
-          parse_mode: "HTML",
         }
       );
     }

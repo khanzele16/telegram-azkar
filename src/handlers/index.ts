@@ -97,7 +97,6 @@ export async function handleCalendarNavigation(
 function formatProfileStats(
   stats: Awaited<ReturnType<typeof StreakService.getProfileStats>>
 ): string {
-  console.log(stats.lastReadAt)
   return `📊 <b>Ваша статистика:</b>\n
 🌅 Утренние: <b>${stats.morningRead}</b> дней (пропущено: ${
     stats.morningSkipped

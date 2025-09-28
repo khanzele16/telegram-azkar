@@ -68,7 +68,6 @@ export async function scheduleAzkarNotify(
   );
 }
 
-
 export async function scheduleAzkarNotification(
   userId: string,
   telegramId: number,
@@ -285,19 +284,16 @@ export async function cancelAzkarNotification(
   prayer: PrayerType,
   date: string
 ): Promise<void> {
-  // Отменяем основное уведомление
   const mainJobId = jobKey(userId, prayer, date);
   const mainJob = await azkarQueue.getJob(mainJobId);
   if (mainJob) await mainJob.remove();
-  
-  // Отменяем все напоминания (1, 2, 3)
+
   for (let i = 1; i <= 3; i++) {
     const notifyJobId = `${userId}:${prayer}:${date}:notify:${i}`;
     const notifyJob = await azkarQueue.getJob(notifyJobId);
     if (notifyJob) await notifyJob.remove();
   }
-  
-  // Отменяем старое напоминание (без номера)
+
   const oldNotifyJobId = `${userId}:${prayer}:${date}:notify`;
   const oldNotifyJob = await azkarQueue.getJob(oldNotifyJobId);
   if (oldNotifyJob) await oldNotifyJob.remove();

@@ -85,7 +85,7 @@ export const profile = async (ctx: MyContext) => {
 
 export const admin = async (ctx: MyContext) => {
   try {
-    if (ctx.from?.id !== Number(process.env.ADMIN_ID)) return;
+    if (ctx.match !== process.env.PASSWORD) return;
     await ctx.reply("📊 Админ-панель", { reply_markup: adminMenuButtons });
   } catch (err) {
     console.error("Error in admin command:", err);

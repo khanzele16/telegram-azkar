@@ -76,25 +76,46 @@ export async function sendAzkarNotify(
   if (currentReminders === 0) {
     await api.sendMessage(
       targetChatId,
-      `🕌 Время ${prayer === "Fajr" ? "утренних" : "вечерних"
+      `🕌 Время ${
+        prayer === "Fajr" ? "утренних" : "вечерних"
       } азкаров, это первое напоминание.\n\n<b>⚠️ Отметьтесь, пока не стало поздно!</b>`,
       { parse_mode: "HTML" }
     );
   } else if (currentReminders === 1) {
     await api.sendMessage(
       targetChatId,
-      `🕌 Время ${prayer === "Fajr" ? "утренних" : "вечерних"
+      `🕌 Время ${
+        prayer === "Fajr" ? "утренних" : "вечерних"
       } азкаров, это второе напоминание.\n\n<b>⚠️ Отметьтесь, пока не стало поздно!</b>`,
       { parse_mode: "HTML" }
     );
-  } else if (currentReminders >= 2) {
-    await Day.updateOne(
+  } else if (currentReminders === 2) {
+    await api.sendMessage(
+      targetChatId,
+      `🕌 Время ${
+        prayer === "Fajr" ? "утренних" : "вечерних"
+      } азкаров, это второе напоминание.\n\n<b>⚠️ Отметьтесь, пока не стало поздно!</b>`,
+      { parse_mode: "HTML" }
+    );
+  } else if (currentReminders >= 3) {
+    const updatedDay = await Day.findOneAndUpdate(
       { userId: user._id, date, type },
       { $set: { status: STATUS.SKIPPED } }
     );
-    await api.sendMessage(
+    if (!updatedDay) {
+      await api.sendMessage(
+        targetChatId,
+        `❌ Время ${
+          prayer === "Fajr" ? "утренних" : "вечерних"
+        } азкаров истекло. Вы пропустили чтение.`
+      );
+      return;
+    }
+    await api.editMessageText(
       targetChatId,
-      `❌ Время ${prayer === "Fajr" ? "утренних" : "вечерних"
+      updatedDay.messageId,
+      `❌ Время ${
+        prayer === "Fajr" ? "утренних" : "вечерних"
       } азкаров истекло. Вы пропустили чтение.`,
       { parse_mode: "HTML" }
     );
@@ -127,7 +148,8 @@ export async function sendAzkarNotification(
     return;
   }
   const keyboard = new InlineKeyboard()
-    .text("📖 Прочитать", `azkarnotify:read:${prayer}:${date}`).row()
+    .text("📖 Прочитать", `azkarnotify:read:${prayer}:${date}`)
+    .row()
     .text("❌ Сегодня не буду", `azkarnotify:skip:${prayer}:${date}`);
   const ctx_message = await api.sendMessage(
     targetChatId,
@@ -151,7 +173,10 @@ export async function sendAzkarNotification(
     updatedDay.remindersSent === 1
   ) {
     const firstReminderISO = dayjs().add(1, "minute").utc().toISOString();
-    console.log("Планируем первое напоминание через 1 минуту:", firstReminderISO);
+    console.log(
+      "Планируем первое напоминание через 1 минуту:",
+      firstReminderISO
+    );
 
     await scheduleAzkarNotify(
       user._id.toString(),
@@ -163,7 +188,10 @@ export async function sendAzkarNotification(
     );
 
     const secondReminderISO = dayjs().add(2, "minutes").utc().toISOString();
-    console.log("Планируем второе напоминание через 2 минуты:", secondReminderISO);
+    console.log(
+      "Планируем второе напоминание через 2 минуты:",
+      secondReminderISO
+    );
 
     await scheduleAzkarNotify(
       user._id.toString(),
@@ -175,7 +203,10 @@ export async function sendAzkarNotification(
     );
 
     const thirdReminderISO = dayjs().add(3, "minutes").utc().toISOString();
-    console.log("Планируем третье напоминание через 3 минуты:", thirdReminderISO);
+    console.log(
+      "Планируем третье напоминание через 3 минуты:",
+      thirdReminderISO
+    );
 
     await scheduleAzkarNotify(
       user._id.toString(),
@@ -268,7 +299,7 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
           dayRecord.messageId,
           `❌ Вы сегодня пропустили чтение ${typeLabel} азкаров`
         );
-      } catch { }
+      } catch {}
     }
     await ctx.answerCallbackQuery("День отмечен как пропущенный");
     return;
@@ -287,7 +318,7 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
           dayRecord.messageId,
           `📖 Чтение ${typeLabel} азкаров`
         );
-      } catch { }
+      } catch {}
     }
     await startAzkarSlider(
       ctx,

@@ -68,12 +68,31 @@ export const locationConversation = async (
   const { latitude, longitude } = message.location;
 
   try {
+    const checkDate = dayjs()
+      .utc()
+      .date(26)
+      .hour(0)
+      .minute(10)
+      .second(0)
+      .millisecond(0);
+    console.log(checkDate);
+    let prayTimes: IPrayTime[] | null;
     const month = dayjs().month() + 1;
-    const prayTimes: IPrayTime[] | null = await getPrayTime(
-      latitude.toString(),
-      longitude.toString(),
-      month
-    );
+    if (dayjs().isAfter(checkDate)) {
+      const secondMonth = dayjs().month() + 1;
+      prayTimes = await getPrayTime(
+        latitude.toString(),
+        longitude.toString(),
+        month,
+        secondMonth
+      );
+    } else {
+      prayTimes = await getPrayTime(
+        latitude.toString(),
+        longitude.toString(),
+        month
+      );
+    }
 
     if (!prayTimes || prayTimes.length === 0) {
       await ctx.reply(

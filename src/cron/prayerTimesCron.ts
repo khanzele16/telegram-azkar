@@ -22,7 +22,7 @@ const connection = new Redis(process.env.REDIS_URL as string, {
   maxRetriesPerRequest: null,
 });
 
-export type PrayerType = "Fajr" | "Maghrib";
+export type PrayerType = "Fajr" | "Asr";
 
 export const azkarQueue = new Queue("azkar", { connection });
 export const azkarQueueEvents = new QueueEvents("azkar", { connection });
@@ -161,31 +161,31 @@ export async function updatePrayerTimesAndSchedule(
         "YYYY-MM-DD HH:mm",
         pt.timezone
       );
-      const maghribDayjs = dayjs.tz(
-        `${formattedDate} ${pt.Maghrib}`,
+      const asrDayjs = dayjs.tz(
+        `${formattedDate} ${pt.Asr}`,
         "YYYY-MM-DD HH:mm",
         pt.timezone
       );
 
-      if (!fajrDayjs.isValid() || !maghribDayjs.isValid()) {
+      if (!fajrDayjs.isValid() || !asrDayjs.isValid()) {
         console.error("Invalid date parsing in cron:", {
           date: pt.date,
           fajr: pt.Fajr,
-          maghrib: pt.Maghrib,
+          asr: pt.Asr,
           formattedDate,
           fajrValid: fajrDayjs.isValid(),
-          maghribValid: maghribDayjs.isValid(),
+          asrValid: asrDayjs.isValid(),
         });
         throw new Error(`Invalid date format: ${pt.date}`);
       }
 
       const fajrUTC = fajrDayjs.utc().toISOString();
-      const maghribUTC = maghribDayjs.utc().toISOString();
+      const asrUTC = asrDayjs.utc().toISOString();
       return {
         timezone: pt.timezone,
         date: pt.date,
         FajrUTC: fajrUTC,
-        MaghribUTC: maghribUTC,
+        AsrUTC: asrUTC,
       };
     });
 
@@ -198,7 +198,7 @@ export async function updatePrayerTimesAndSchedule(
 
     for (const timing of timingsToAdd) {
       const fajrTime = dayjs.tz(timing.FajrUTC, timing.timezone);
-      const maghribTime = dayjs.tz(timing.MaghribUTC, timing.timezone);
+      const asrTime = dayjs.tz(timing.AsrUTC, timing.timezone);
       const existingDayMorning = await Day.findOne({
         userId,
         date: timing.date,
@@ -220,12 +220,12 @@ export async function updatePrayerTimesAndSchedule(
           timezone: timing.timezone,
         });
       }
-      if (!existingDayEvening && maghribTime.isAfter(todayChecker)) {
+      if (!existingDayEvening && asrTime.isAfter(todayChecker)) {
         await Day.create({
           userId,
           date: timing.date,
           type: "evening",
-          utcTime: timing.MaghribUTC,
+          utcTime: timing.AsrUTC,
           status: "pending",
           timezone: timing.timezone,
         });
@@ -246,7 +246,7 @@ export async function updatePrayerTimesAndSchedule(
         await scheduleAzkarNotification(
           userId,
           user.telegramId,
-          "Maghrib",
+          "Asr",
           day.date,
           day.utcTime
         );
@@ -337,7 +337,7 @@ async function checkExpiredAzkars(): Promise<void> {
     const user = await User.findById(day.userId);
     if (!user) continue;
 
-    const prayer = day.type === "morning" ? "Fajr" : "Maghrib";
+    const prayer = day.type === "morning" ? "Fajr" : "Asr";
     
     // Обновляем статус на skipped
     await Day.updateOne(

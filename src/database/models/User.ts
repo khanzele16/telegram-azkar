@@ -14,7 +14,7 @@ const User = new Schema<IUser>(
         timezone: { type: String, required: true },
         date: { type: String, required: true },
         FajrUTC: { type: String, required: true },
-        MaghribUTC: { type: String, required: true },
+        AsrUTC: { type: String, required: true },
       },
     ],
     date: {

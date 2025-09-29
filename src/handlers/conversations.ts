@@ -112,19 +112,19 @@ export const locationConversation = async (
         "YYYY-MM-DD HH:mm",
         pt.timezone
       );
-      const maghribDayjs = dayjs.tz(
-        `${formattedDate} ${pt.Maghrib}`,
+      const asrDayjs = dayjs.tz(
+        `${formattedDate} ${pt.Asr}`,
         "YYYY-MM-DD HH:mm",
         pt.timezone
       );
 
       const fajrUTC = fajrDayjs.utc().toISOString();
-      const maghribUTC = maghribDayjs.utc().toISOString();
+      const asrUTC = asrDayjs.utc().toISOString();
       return {
         timezone: pt.timezone,
         date: pt.date,
         FajrUTC: fajrUTC,
-        MaghribUTC: maghribUTC,
+        AsrUTC: asrUTC,
       };
     });
 
@@ -167,7 +167,7 @@ export const locationConversation = async (
 
     for (const timing of timingsToAdd) {
       const fajrTime = dayjs.utc(timing.FajrUTC).tz(timing.timezone);
-      const maghribTime = dayjs.utc(timing.MaghribUTC).tz(timing.timezone);
+      const asrTime = dayjs.utc(timing.AsrUTC).tz(timing.timezone);
 
       if (fajrTime.isAfter(todayChecker)) {
         await Day.create({
@@ -179,12 +179,12 @@ export const locationConversation = async (
           timezone: timing.timezone,
         });
       }
-      if (maghribTime.isAfter(todayChecker)) {
+      if (asrTime.isAfter(todayChecker)) {
         await Day.create({
           userId: user!._id,
           date: timing.date,
           type: "evening",
-          utcTime: timing.MaghribUTC,
+          utcTime: timing.AsrUTC,
           status: "pending",
           timezone: timing.timezone,
         });
@@ -200,7 +200,7 @@ export const locationConversation = async (
       `<b>🌞 Ваши напоминания на месяц обновлены</b>\n\n` +
         `<b>Сегодня (${dayjs().format("D MMMM YYYY")})</b>:\n` +
         `🌅 Фаджр — ${todayPrayTime.Fajr}\n` +
-        `🌃 Магриб — ${todayPrayTime.Maghrib}\n\n` +
+        `🌃 Магриб — ${todayPrayTime.Asr}\n\n` +
         "✅ Уведомления будут приходить автоматически.\n" +
         "🏠 Можете перейти в <b>главное меню</b> с помощью /menu.",
       { parse_mode: "HTML" }

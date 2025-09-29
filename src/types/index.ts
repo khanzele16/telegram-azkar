@@ -23,7 +23,7 @@ export interface IPrayTimeResponse {
       };
       timings: {
         Fajr: string;
-        Maghrib: string;
+        Asr: string;
       };
     }
   ];
@@ -33,7 +33,7 @@ export interface IPrayTime {
   timezone: string;
   date: string;
   Fajr: string;
-  Maghrib: string;
+  Asr: string;
 }
 
 export type MyContext = ConversationFlavor<Context>;

@@ -165,8 +165,8 @@ export async function profileHandler(ctx: MyContext): Promise<void> {
     await ctx.reply(
       `<b>👤 Профиль — ${user.username || "Ваш"}</b>\n\n🌅 Утренний намаз: ${
         todayPrayTime?.Fajr || "-"
-      }\n🌃 Вечерний намаз: ${
-        todayPrayTime?.Maghrib || "-"
+      }\n🌃 Послеобеденный намаз: ${
+        todayPrayTime?.Asr || "-"
       }\n\n🌅 Утренние: <b>${stats.morningRead}</b> дней (пропущено: ${
         stats.morningSkipped
       })\n🌇 Вечерние: <b>${stats.eveningRead}</b> дней (пропущено: ${

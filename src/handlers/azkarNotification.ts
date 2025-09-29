@@ -31,7 +31,7 @@ const TYPE = {
   EVENING: "evening",
 } as const;
 
-function prayerToType(prayer: "Fajr" | "Maghrib"): "morning" | "evening" {
+function prayerToType(prayer: "Fajr" | "Asr"): "morning" | "evening" {
   return prayer === "Fajr" ? TYPE.MORNING : TYPE.EVENING;
 }
 
@@ -49,7 +49,7 @@ const sliderStates = new Map<
 
 export async function sendAzkarNotify(
   telegramId: number,
-  prayer: "Fajr" | "Maghrib",
+  prayer: "Fajr" | "Asr",
   date: string,
   utcTime?: string,
   chatId?: number
@@ -123,7 +123,7 @@ export async function sendAzkarNotify(
 
 export async function sendAzkarNotification(
   telegramId: number,
-  prayer: "Fajr" | "Maghrib",
+  prayer: "Fajr" | "Asr",
   date: string,
   chatId?: number
 ): Promise<void> {
@@ -217,7 +217,7 @@ async function startAzkarSlider(
   ctx: MyContext,
   userId: Types.ObjectId,
   chatId: number,
-  prayer: "Fajr" | "Maghrib",
+  prayer: "Fajr" | "Asr",
   date: string
 ) {
   const type = prayerToType(prayer);
@@ -276,13 +276,13 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
   }
 
   const typeLabel = prayer === "Fajr" ? "утренних" : "вечерних";
-  const dbType = prayerToType(prayer as "Fajr" | "Maghrib");
+  const dbType = prayerToType(prayer as "Fajr" | "Asr");
   const dayRecord = await Day.findOne({ userId: user._id, date, type: dbType });
 
   if (action === "skip") {
     await cancelAzkarNotification(
       user._id.toString(),
-      prayer as "Fajr" | "Maghrib",
+      prayer as "Fajr" | "Asr",
       date
     );
     await StreakService.markSkipped(user._id, date, dbType);
@@ -318,7 +318,7 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
       ctx,
       user._id,
       ctx.from.id,
-      prayer as "Fajr" | "Maghrib",
+      prayer as "Fajr" | "Asr",
       date
     );
     await ctx.answerCallbackQuery();

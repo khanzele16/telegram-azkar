@@ -38,7 +38,7 @@ export const adminMenuButtons = new Menu<MyContext>("admin-menu")
     const notifyUsers = await User.countDocuments({
       blocked: false,
       "timings.FajrUTC": { $exists: true, $ne: null },
-      "timings.MaghribUTC": { $exists: true, $ne: null },
+      "timings.AsrUTC": { $exists: true, $ne: null },
     });
     const blockedUsers = await User.countDocuments({ blocked: true });
     await ctx.reply(

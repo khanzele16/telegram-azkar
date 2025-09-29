@@ -12,7 +12,7 @@ export interface IUser {
     timezone: string;
     date: string;
     FajrUTC: string;
-    MaghribUTC: string;
+    AsrUTC: string;
   }[];
   date?: {
     readable: string;
@@ -45,7 +45,7 @@ export interface IUserData {
   };
   timings?: {
     Fajr: string;
-    Maghrib: string;
+    Asr: string;
   };
 }
 

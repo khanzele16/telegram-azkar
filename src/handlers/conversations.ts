@@ -200,7 +200,7 @@ export const locationConversation = async (
       `<b>🌞 Ваши напоминания на месяц обновлены</b>\n\n` +
         `<b>Сегодня (${dayjs().format("D MMMM YYYY")})</b>:\n` +
         `🌅 Фаджр — ${todayPrayTime.Fajr}\n` +
-        `🌃 Магриб — ${todayPrayTime.Asr}\n\n` +
+        `🌃 Аср — ${todayPrayTime.Asr}\n\n` +
         "✅ Уведомления будут приходить автоматически.\n" +
         "🏠 Можете перейти в <b>главное меню</b> с помощью /menu.",
       { parse_mode: "HTML" }

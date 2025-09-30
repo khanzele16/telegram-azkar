@@ -145,7 +145,7 @@ export const locationConversation = async (
       ]);
       for (const job of jobs) {
         if (
-          job.data.userId.toString() === user._id.toString() &&
+          job.data.userId?.toString() === user._id.toString() &&
           job.data.utcTime > todayUTC
         ) {
           await job.remove();

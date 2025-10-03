@@ -1,9 +1,9 @@
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import Day from "../database/models/Day";
 import User from "../database/models/User";
-import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import { Types } from "mongoose";
-import dayjs from "dayjs";
 import { getLocalDateFromUTC } from "../shared";
 
 dayjs.extend(utc);
@@ -26,6 +26,7 @@ export class StreakService {
       },
       { upsert: true }
     );
+    console.log(localDate)
 
     const user = await User.findById(userId);
     if (!user) return;

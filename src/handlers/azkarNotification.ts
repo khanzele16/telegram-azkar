@@ -115,7 +115,6 @@ export async function sendAzkarNotify(
 
     return;
   }
-
   await Day.updateOne(
     { userId: user._id, date, type },
     { $inc: { remindersSent: 1 } }
@@ -340,12 +339,13 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
       { $set: { status: STATUS.READ, startedAt: new Date() } },
       { upsert: true }
     );
+    await StreakService.markRead(user._id, date, dbType);
     if (dayRecord?.messageId && ctx.chat) {
       try {
         await ctx.api.editMessageText(
           ctx.chat.id,
           dayRecord.messageId,
-          "✅ Вы прочитали сегодня утренние азкары"
+          `✅ Вы прочитали сегодня ${typeLabel} азкары`
         );
       } catch (err) {
         console.log("Не получилось отредактировать сообщение: ", err);

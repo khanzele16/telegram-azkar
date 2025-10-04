@@ -125,6 +125,10 @@ export async function handleCallbackQuery(ctx: MyContext): Promise<void> {
       }
     }
 
+    if (data === "open:azkar") {
+      await handleOpenAzkar(ctx);
+    }
+
     if (data.startsWith("azkarnotify:")) {
       await handleAzkarNotifyCallback(ctx);
       return;

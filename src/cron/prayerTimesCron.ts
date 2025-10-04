@@ -55,6 +55,10 @@ export async function scheduleAzkarNotify(
 
   console.log(`Планируем напоминание #${reminderNumber || 1}, delay:`, delay);
 
+  if (reminderNumber === 1) {
+    
+  }
+
   const jobId = reminderNumber 
     ? `${userId}:${prayer}:${date}:notify:${reminderNumber}`
     : `${userId}:${prayer}:${date}:notify`;

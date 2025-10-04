@@ -22,3 +22,18 @@ export const commands: ICommand[] = [
   },
   { command: "help", description: "Помощь", action: help },
 ];
+
+export const STATUS = {
+  PENDING: "pending",
+  READ: "read",
+  SKIPPED: "skipped",
+} as const;
+
+export const TYPE = {
+  MORNING: "morning",
+  EVENING: "evening",
+} as const;
+
+export function prayerToType(prayer: "Fajr" | "Asr"): "morning" | "evening" {
+  return prayer === "Fajr" ? TYPE.MORNING : TYPE.EVENING;
+}

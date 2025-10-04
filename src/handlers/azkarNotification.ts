@@ -13,6 +13,8 @@ import { Types } from "mongoose";
 import { MyContext } from "../types";
 import { IAzkar } from "../types/models";
 import dayjs from "dayjs";
+import { openAzkar } from "../shared/keyboards";
+import { prayerToType, STATUS } from "../config";
 
 dotenv.config({ path: "src/.env" });
 
@@ -20,22 +22,7 @@ dayjs.extend(timezone);
 
 const api = new Api(process.env.BOT_TOKEN as string);
 
-const STATUS = {
-  PENDING: "pending",
-  READ: "read",
-  SKIPPED: "skipped",
-} as const;
-
-const TYPE = {
-  MORNING: "morning",
-  EVENING: "evening",
-} as const;
-
-function prayerToType(prayer: "Fajr" | "Asr"): "morning" | "evening" {
-  return prayer === "Fajr" ? TYPE.MORNING : TYPE.EVENING;
-}
-
-const sliderStates = new Map<
+export const sliderStates = new Map<
   string,
   {
     index: number;
@@ -74,20 +61,34 @@ export async function sendAzkarNotify(
   const currentReminders = existingDay?.remindersSent || 0;
 
   if (currentReminders === 1) {
-    await api.sendMessage(
+    if (existingDay?.messageId) {
+      await api.deleteMessage(targetChatId, existingDay.messageId);
+    }
+    const message = await api.sendMessage(
       targetChatId,
       `⏰ Не забудьте прочитать ${
         prayer === "Fajr" ? "утренние" : "вечерние"
       } азкары! Это важно для вашего стрика.`,
-      { parse_mode: "HTML" }
+      { reply_markup: openAzkar, parse_mode: "HTML" }
+    );
+    await Day.findOneAndUpdate(
+      { _id: existingDay?._id },
+      { $set: { messageId: message.message_id } }
     );
   } else if (currentReminders === 2) {
-    await api.sendMessage(
+    if (existingDay?.messageId) {
+      await api.deleteMessage(targetChatId, existingDay.messageId);
+    }
+    const message = await api.sendMessage(
       targetChatId,
       `🕌 Последнее напоминание на сегодня: ${
         prayer === "Fajr" ? "утренние" : "вечерние"
       } азкары ждут вашего внимания.\n\nПоддержите свой стрик и завершите день с пользой!`,
       { parse_mode: "HTML" }
+    );
+    await Day.findOneAndUpdate(
+      { _id: existingDay?._id },
+      { $set: { messageId: message.message_id } }
     );
   } else if (currentReminders >= 3) {
     const updatedDay = await Day.findOneAndUpdate(
@@ -142,7 +143,6 @@ export async function sendAzkarNotification(
     return;
   }
 
-  // Получаем азкары для нужной категории
   const azkar = await Azkar.find({ category: type }).lean();
   if (!azkar || azkar.length === 0) {
     try {
@@ -156,7 +156,6 @@ export async function sendAzkarNotification(
     return;
   }
 
-  // Создаём состояние слайдера прямо здесь (без ctx)
   const sliderId = `${telegramId}:${Date.now()}`;
   sliderStates.set(sliderId, {
     index: 0,
@@ -167,25 +166,21 @@ export async function sendAzkarNotification(
     azkar,
   });
 
-  // Отправляем первый слайд (слайдер) — вместо "Прочитать / Сегодня не буду"
   let messageId: number | undefined;
   try {
     const msg = await api.sendMessage(
       targetChatId,
       formatAzkarMessage(azkar[0], 1, azkar.length),
       {
-        reply_markup: buildSliderKeyboard(sliderId),
+        reply_markup: buildSliderKeyboard(sliderId, prayer, date),
         parse_mode: "HTML",
       }
     );
-    // grammy Message содержит поле message_id (snake_case)
     messageId = (msg as any).message_id as number;
   } catch (err) {
     console.error("Ошибка при отправке слайдера пользователю", telegramId, err);
-    // В случае ошибки оставляем messageId undefined — но всё равно создадим/обновим Day
   }
 
-  // Обновляем или создаём запись Day (сохраняем messageId, ставим pending при вставке и увеличиваем remindersSent)
   await Day.updateOne(
     { userId: user._id, date, type },
     {
@@ -196,14 +191,13 @@ export async function sendAzkarNotification(
     { upsert: true }
   );
 
-  // Если это первая отправка (remindersSent === 1) — планируем ретраеверы (2h/4h/6h), оставлена прежняя логика
   const updatedDay = await Day.findOne({ userId: user._id, date, type });
   if (
     updatedDay &&
     updatedDay.status === STATUS.PENDING &&
     updatedDay.remindersSent === 1
   ) {
-    const firstReminderISO = dayjs().add(4, "hours").utc().toISOString();
+    const firstReminderISO = dayjs().add(1, "minutes").utc().toISOString();
     console.log("Планируем первое напоминание через 4 часа:", firstReminderISO);
 
     await scheduleAzkarNotify(
@@ -215,7 +209,7 @@ export async function sendAzkarNotification(
       1
     );
 
-    const secondReminderISO = dayjs().add(8, "hours").utc().toISOString();
+    const secondReminderISO = dayjs().add(2, "minutes").utc().toISOString();
     console.log(
       "Планируем второе напоминание через 8 часа:",
       secondReminderISO
@@ -230,7 +224,7 @@ export async function sendAzkarNotification(
       2
     );
 
-    const thirdReminderISO = dayjs().add(9, "hours").utc().toISOString();
+    const thirdReminderISO = dayjs().add(3, "minutes").utc().toISOString();
     console.log(
       "Планируем третье напоминание через 9 часов:",
       thirdReminderISO
@@ -269,7 +263,7 @@ async function startAzkarSlider(
   const sliderId = `${ctx.from.id}:${Date.now()}`;
   sliderStates.set(sliderId, { index: 0, date, userId, chatId, type, azkar });
 
-  const keyboard = buildSliderKeyboard(sliderId);
+  const keyboard = buildSliderKeyboard(sliderId, prayer, date);
   await ctx.api.sendMessage(
     chatId,
     formatAzkarMessage(azkar[0], 1, azkar.length),
@@ -277,17 +271,21 @@ async function startAzkarSlider(
   );
 }
 
-function buildSliderKeyboard(sliderId: string): InlineKeyboard {
+export function buildSliderKeyboard(
+  sliderId: string,
+  prayer: "Fajr" | "Asr" = "Fajr",
+  date: string
+): InlineKeyboard {
   return new InlineKeyboard()
     .text("⏪", `slider:${sliderId}:prev`)
     .text("⏩", `slider:${sliderId}:next`)
     .row()
-    .text("✅ Прочитал", `slider:${sliderId}:finish`)
+    .text("✅ Прочитал", `azkarnotify:read:${prayer}:${date}`)
     .row()
-    .text("❌ Сегодня не читаю", `slider:${sliderId}:skip`);
+    .text("❌ Сегодня не читаю", `azkarnotify:skip:${prayer}:${date}`);
 }
 
-function formatAzkarMessage(azkar: IAzkar, i: number, total: number): string {
+export function formatAzkarMessage(azkar: IAzkar, i: number, total: number): string {
   return `<b>📖 Азкар ${i}/${total}</b>\n\n<blockquote>${azkar.text}\n\n${azkar.translation}</blockquote>\n\n<b>Транскрипция:</b> ${azkar.transcription}`;
 }
 
@@ -405,8 +403,8 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
     await ctx.answerCallbackQuery("❌ Ошибка загрузки");
     return;
   }
-
-  const kb = buildSliderKeyboard(sliderId);
+  const prayer = state.type === "morning" ? "Fajr" : "Asr";
+  const kb = buildSliderKeyboard(sliderId, prayer, state.date);
   const messageText = formatAzkarMessage(currentAzkar, state.index + 1, total);
 
   try {

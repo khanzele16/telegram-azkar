@@ -16,3 +16,5 @@ export const toAdminKeyboard = new InlineKeyboard().text(
 );
 
 export const MailingKeyboard = new InlineKeyboard().text('✅ Да', 'mailing:yes').text('❌ Нет', 'mailing:cancel');
+
+export const openAzkar = new InlineKeyboard().text('Открыть азкары', 'open:azkar');

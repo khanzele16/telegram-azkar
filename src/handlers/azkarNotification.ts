@@ -315,7 +315,6 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
       { $set: { status: STATUS.READ, startedAt: new Date() } },
       { upsert: true }
     );
-    console.log('Я здесь')
     await StreakService.markRead(user._id, date, dbType);
     if (dayRecord?.messageId && ctx.chat) {
       try {

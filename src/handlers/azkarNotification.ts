@@ -326,7 +326,9 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
           dayRecord.messageId,
           `❌ Вы сегодня пропустили чтение ${typeLabel} азкаров`
         );
-      } catch {}
+      } catch (err) {
+        console.log("Не получилось отредактировать сообщение: ", err);
+      }
     }
     await ctx.answerCallbackQuery("День отмечен как пропущенный");
     return;
@@ -335,7 +337,7 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
   if (action === "read") {
     await Day.updateOne(
       { userId: user._id, date, type: dbType },
-      { $set: { status: STATUS.PENDING, startedAt: new Date() } },
+      { $set: { status: STATUS.READ, startedAt: new Date() } },
       { upsert: true }
     );
     if (dayRecord?.messageId && ctx.chat) {
@@ -343,19 +345,13 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
         await ctx.api.editMessageText(
           ctx.chat.id,
           dayRecord.messageId,
-          `📖 Чтение ${typeLabel} азкаров`
+          "✅ Вы прочитали сегодня утренние азкары"
         );
-      } catch {}
+      } catch (err) {
+        console.log("Не получилось отредактировать сообщение: ", err);
+      }
     }
-    await startAzkarSlider(
-      ctx,
-      user._id,
-      ctx.from.id,
-      prayer as "Fajr" | "Asr",
-      date
-    );
-    await ctx.answerCallbackQuery();
-    return;
+    await ctx.answerCallbackQuery("День отмечен как прочитанный");
   }
 
   await ctx.answerCallbackQuery("❌ Неизвестное действие");

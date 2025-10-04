@@ -38,7 +38,7 @@ export async function handleOpenAzkar(ctx: MyContext): Promise<void> {
     return;
   }
 
-  const messageId = (cbMessage as any).message_id as number;
+  const messageId = cbMessage.message_id as number;
   const dayRecord = await Day.findOne({
     userId: user._id,
     messageId,
@@ -85,10 +85,13 @@ export async function handleOpenAzkar(ctx: MyContext): Promise<void> {
   );
 
   try {
-    await ctx.editMessageText(formatAzkarMessage(azkar[0], 1, azkar.length), {
-      reply_markup: kb,
-      parse_mode: "HTML",
-    });
+    await ctx.editMessageText(
+      formatAzkarMessage(azkar[0], 1, azkar.length, prayer),
+      {
+        reply_markup: kb,
+        parse_mode: "HTML",
+      }
+    );
   } catch (err) {
     console.error("Ошибка при редактировании сообщения в слайдер:", err);
     await ctx.answerCallbackQuery("❌ Не удалось открыть азкары");

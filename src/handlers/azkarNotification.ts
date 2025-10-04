@@ -169,7 +169,7 @@ export async function sendAzkarNotification(
   try {
     const msg = await api.sendMessage(
       targetChatId,
-      formatAzkarMessage(azkar[0], 1, azkar.length),
+      formatAzkarMessage(azkar[0], 1, azkar.length, prayer),
       {
         reply_markup: buildSliderKeyboard(sliderId, prayer, date),
         parse_mode: "HTML",
@@ -240,36 +240,6 @@ export async function sendAzkarNotification(
   }
 }
 
-async function startAzkarSlider(
-  ctx: MyContext,
-  userId: Types.ObjectId,
-  chatId: number,
-  prayer: "Fajr" | "Asr",
-  date: string
-) {
-  const type = prayerToType(prayer);
-  const azkar = await Azkar.find({ category: type }).lean();
-  if (azkar.length === 0) {
-    await ctx.api.sendMessage(chatId, "Нет азкаров для отображения");
-    return;
-  }
-
-  if (!ctx.from) {
-    await ctx.api.sendMessage(chatId, "❌ Ошибка контекста");
-    return;
-  }
-
-  const sliderId = `${ctx.from.id}:${Date.now()}`;
-  sliderStates.set(sliderId, { index: 0, date, userId, chatId, type, azkar });
-
-  const keyboard = buildSliderKeyboard(sliderId, prayer, date);
-  await ctx.api.sendMessage(
-    chatId,
-    formatAzkarMessage(azkar[0], 1, azkar.length),
-    { reply_markup: keyboard, parse_mode: "HTML" }
-  );
-}
-
 export function buildSliderKeyboard(
   sliderId: string,
   prayer: "Fajr" | "Asr" = "Fajr",
@@ -279,7 +249,7 @@ export function buildSliderKeyboard(
     .text("⏪", `slider:${sliderId}:prev`)
     .text("⏩", `slider:${sliderId}:next`)
     .row()
-    .text("✅ Прочитал", `azkarnotify:read:${prayer}:${date}`)
+    .text("✅ Прочитал всё", `azkarnotify:read:${prayer}:${date}`)
     .row()
     .text("❌ Сегодня не читаю", `azkarnotify:skip:${prayer}:${date}`);
 }
@@ -287,9 +257,14 @@ export function buildSliderKeyboard(
 export function formatAzkarMessage(
   azkar: IAzkar,
   i: number,
-  total: number
+  total: number,
+  prayer: "Fajr" | "Asr"
 ): string {
-  return `<b>📖 Азкар ${i}/${total}</b>\n\n<blockquote>${azkar.text}\n\n${azkar.translation}</blockquote>\n\n<b>Транскрипция:</b> ${azkar.transcription}`;
+  return `<b>📖${
+    prayer === "Fajr" ? "Утренние" : "Вечерние"
+  } азкары (${i}/${total})</b>\n\n<blockquote>${azkar.text}\n\n${
+    azkar.translation
+  }</blockquote>\n\n<b>Транскрипция:</b> ${azkar.transcription}`;
 }
 
 export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
@@ -339,6 +314,7 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
       { $set: { status: STATUS.READ, startedAt: new Date() } },
       { upsert: true }
     );
+    console.log('Я здесь')
     await StreakService.markRead(user._id, date, dbType);
     if (dayRecord?.messageId && ctx.chat) {
       try {
@@ -405,7 +381,12 @@ export async function handleSliderCallback(ctx: MyContext): Promise<void> {
   }
   const prayer = state.type === "morning" ? "Fajr" : "Asr";
   const kb = buildSliderKeyboard(sliderId, prayer, state.date);
-  const messageText = formatAzkarMessage(currentAzkar, state.index + 1, total);
+  const messageText = formatAzkarMessage(
+    currentAzkar,
+    state.index + 1,
+    total,
+    prayer
+  );
 
   try {
     await ctx.editMessageText(messageText, {

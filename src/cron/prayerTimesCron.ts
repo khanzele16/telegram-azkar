@@ -12,6 +12,7 @@ import {
   sendAzkarNotify,
 } from "../handlers/azkarNotification";
 import { Api } from "grammy";
+import { prayerToType } from "../config";
 
 const api = new Api(process.env.BOT_TOKEN as string);
 
@@ -39,7 +40,7 @@ export async function scheduleAzkarNotify(
   runAtISO: string,
   reminderNumber?: number
 ): Promise<void> {
-  const type = prayer === "Fajr" ? "morning" : "evening";
+  const type = prayerToType(prayer)
 
   const existing = await Day.findOne({ userId, date, type });
   if (
@@ -54,10 +55,6 @@ export async function scheduleAzkarNotify(
   const delay = runAt.diff(now);
 
   console.log(`Планируем напоминание #${reminderNumber || 1}, delay:`, delay);
-
-  if (reminderNumber === 1) {
-    
-  }
 
   const jobId = reminderNumber 
     ? `${userId}:${prayer}:${date}:notify:${reminderNumber}`
@@ -79,7 +76,7 @@ export async function scheduleAzkarNotification(
   date: string,
   runAtISO: string
 ): Promise<void> {
-  const type = prayer === "Fajr" ? "morning" : "evening";
+  const type = prayerToType(prayer)
 
   const existing = await Day.findOne({ userId, date, type });
   if (
@@ -343,7 +340,6 @@ async function checkExpiredAzkars(): Promise<void> {
 
     const prayer = day.type === "morning" ? "Fajr" : "Asr";
     
-    // Обновляем статус на skipped
     await Day.updateOne(
       { _id: day._id },
       { $set: { status: "skipped" } }

@@ -84,7 +84,7 @@ export async function sendAzkarNotify(
       `🕌 Последнее напоминание на сегодня: ${
         prayer === "Fajr" ? "утренние" : "вечерние"
       } азкары ждут вашего внимания.\n\nПоддержите свой стрик и завершите день с пользой!`,
-      { parse_mode: "HTML" }
+      { reply_markup: openAzkar, parse_mode: "HTML" }
     );
     await Day.findOneAndUpdate(
       { _id: existingDay?._id },
@@ -176,7 +176,7 @@ export async function sendAzkarNotification(
         parse_mode: "HTML",
       }
     );
-    messageId = (msg as any).message_id as number;
+    messageId = msg.message_id as number;
   } catch (err) {
     console.error("Ошибка при отправке слайдера пользователю", telegramId, err);
   }
@@ -285,7 +285,11 @@ export function buildSliderKeyboard(
     .text("❌ Сегодня не читаю", `azkarnotify:skip:${prayer}:${date}`);
 }
 
-export function formatAzkarMessage(azkar: IAzkar, i: number, total: number): string {
+export function formatAzkarMessage(
+  azkar: IAzkar,
+  i: number,
+  total: number
+): string {
   return `<b>📖 Азкар ${i}/${total}</b>\n\n<blockquote>${azkar.text}\n\n${azkar.translation}</blockquote>\n\n<b>Транскрипция:</b> ${azkar.transcription}`;
 }
 

@@ -282,7 +282,8 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
     return;
   }
 
-  const typeLabel = prayer === "Fajr" ? "утренних" : "вечерних";
+  const notReadLabel = prayer === "Fajr" ? "утренних" : "вечерних";
+  const readLabel = prayer === 'Fajr' ? "утренние" : "вечерние";
   const dbType = prayerToType(prayer as "Fajr" | "Asr");
   const dayRecord = await Day.findOne({ userId: user._id, date, type: dbType });
 
@@ -298,7 +299,7 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
         await ctx.api.editMessageText(
           ctx.chat.id,
           dayRecord.messageId,
-          `❌ Вы сегодня пропустили чтение ${typeLabel} азкаров`
+          `❌ Вы сегодня пропустили чтение ${notReadLabel} азкаров`
         );
       } catch (err) {
         console.log("Не получилось отредактировать сообщение: ", err);
@@ -321,7 +322,7 @@ export async function handleAzkarNotifyCallback(ctx: MyContext): Promise<void> {
         await ctx.api.editMessageText(
           ctx.chat.id,
           dayRecord.messageId,
-          `✅ Вы прочитали сегодня ${typeLabel} азкары`
+          `✅ Вы прочитали сегодня ${readLabel} азкары`
         );
       } catch (err) {
         console.log("Не получилось отредактировать сообщение: ", err);
